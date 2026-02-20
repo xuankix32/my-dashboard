@@ -51,6 +51,11 @@
         .sort-btn { background: #21262d; border: 1px solid #30363d; color: #c9d1d9; padding: 6px 12px; font-size: 13px; border-radius: 6px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 5px;}
         .sort-btn:hover { background: #30363d; color: #fff; }
 
+        /* 【新增】智慧搜尋下拉選單樣式 */
+        .autocomplete-item { padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #21262d; font-size: 13px; color: #c9d1d9; transition: background 0.2s; }
+        .autocomplete-item:hover { background-color: #1f6feb; color: white; }
+        .autocomplete-item:last-child { border-bottom: none; }
+        .autocomplete-highlight { color: #58a6ff; font-weight: bold; }        
         @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } .tabs { overflow-x: auto; white-space: nowrap; } }
     </style>
 </head>
@@ -66,21 +71,30 @@
     </div>
     
     <div class="card" id="form-card" style="margin-bottom: 25px;">
-        <h3 id="form-title" style="margin-top:0;">➕ 新增交易紀錄</h3>
-        <div class="form-group">
+        <h3 id="form-title" style="margin-top:0; margin-bottom: 20px;">➕ 新增交易紀錄</h3>
+        
+        <div class="form-group" style="padding-bottom: 20px; border-bottom: 1px dashed #30363d; margin-bottom: 20px;">
             <input type="datetime-local" id="trade-date" title="修改交易時間" style="display: none;">
             <select id="trade-type"><option value="buy">買入 (Buy)</option><option value="sell">賣出 (Sell)</option></select>
-            <div style="display: flex; align-items: center; gap: 6px;">
-                <select id="trade-coin" style="width: 140px;"></select>
-                <button onclick="deleteCustomTicker()" type="button" class="sort-btn" style="padding: 10px; background: transparent; border-color: #f85149; color: #ff7b72;" title="從選單移除目前選取的標的">❌</button>
-                
-                <input type="text" id="new-ticker-input" placeholder="自訂代號(例: AAPL)" style="width: 140px; padding: 10px; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: #c9d1d9; outline: none;">
-                <button onclick="addNewTicker()" type="button" class="sort-btn" style="padding: 10px; background: #21262d;">➕ 加入</button>
+            
+            <div style="display: flex; align-items: center; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding-right: 5px;">
+                <select id="trade-coin" onchange="toggleDeleteButton()" style="width: 150px; border: none; outline: none; background: transparent; box-shadow: none;"></select>
+                <button id="delete-ticker-btn" onclick="deleteCustomTicker()" type="button" style="background: transparent; border: none; color: #8b949e; cursor: pointer; padding: 5px 8px; font-size: 14px; display: none; transition: 0.2s;" title="從清單中移除" onmouseover="this.style.color='#ff7b72'" onmouseout="this.style.color='#8b949e'">✖</button>
             </div>
-            <input type="number" id="trade-amount" placeholder="數量 (例: 100)" step="any" style="width: 140px;">
-            <input type="number" id="trade-price" placeholder="單價 (NT$ / USD)" step="any" style="width: 150px;">
+
+            <input type="number" id="trade-amount" placeholder="數量 (例: 100)" step="any" style="width: 130px;">
+            <input type="number" id="trade-price" placeholder="單價" step="any" style="width: 130px;">
             <button id="save-btn" class="action-btn" onclick="saveTrade()">儲存</button>
             <button id="cancel-btn" class="action-btn" onclick="cancelEdit()" style="background: #30363d; display: none;">取消</button>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 12px; position: relative;">
+            <span style="font-size: 13px; color: #8b949e;">找不到標的？</span>
+            <div style="position: relative;">
+                <input type="text" id="new-ticker-input" placeholder="🔍 搜尋代號或名稱 (例: AAPL)" onkeyup="filterTickers()" onfocus="filterTickers()" autocomplete="off" style="width: 240px; padding: 10px 12px; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: #c9d1d9; outline: none;">
+                <div id="autocomplete-list" style="position: absolute; top: 100%; left: 0; right: 0; background: #161b22; border: 1px solid #58a6ff; border-radius: 6px; max-height: 250px; overflow-y: auto; z-index: 1000; display: none; box-shadow: 0 8px 24px rgba(0,0,0,0.6); margin-top: 5px;"></div>
+            </div>
+            <button onclick="addNewTicker()" type="button" class="sort-btn" style="padding: 10px 18px; background: rgba(88, 166, 255, 0.1); border: 1px solid #58a6ff; color: #58a6ff; font-weight: bold;">➕ 加入選單</button>
         </div>
     </div>
 
@@ -246,23 +260,20 @@
             coinSelect.innerHTML = '';
             
             let allOptions = [];
-            // 1. 載入預設標的
             if (categoryOptions[category]) {
                 allOptions = [...categoryOptions[category]];
             }
 
-            // 2. 載入你手動新增的「自訂標的」
             let customTickers = JSON.parse(localStorage.getItem('wealthCustomTickers')) || { 'tw_stock': [], 'us_stock': [], 'crypto': [] };
             if (customTickers[category]) {
                 customTickers[category].forEach(ticker => {
-                    // 避免跟預設的重複
                     if (!allOptions.find(opt => opt.value === ticker)) {
-                        allOptions.push({ value: ticker, text: `${ticker} (自訂)` });
+                        // 【修改】移除了 (自訂) 字眼，保持乾淨
+                        allOptions.push({ value: ticker, text: ticker });
                     }
                 });
             }
 
-            // 3. 畫出選單
             allOptions.forEach(opt => {
                 const optionElement = document.createElement('option');
                 optionElement.value = opt.value;
@@ -273,10 +284,77 @@
             document.getElementById('trade-price').placeholder = category === 'tw_stock' ? '單價 (NT$)' : '單價 (USD)';
             document.getElementById('trade-amount').placeholder = (category === 'tw_stock' || category === 'us_stock') ? '股數 (例: 1000)' : '數量 (例: 100)';
             
-            // 切換頁籤時，順便把自訂輸入框清空
             const newTickerInput = document.getElementById('new-ticker-input');
             if(newTickerInput) newTickerInput.value = '';
+
+            toggleDeleteButton(); // 更新選單後檢查刪除按鈕
         }
+
+        // 【新增】判斷是否顯示「✖」刪除按鈕
+        function toggleDeleteButton() {
+            const coinSelect = document.getElementById('trade-coin');
+            const delBtn = document.getElementById('delete-ticker-btn');
+            if(!coinSelect || !delBtn) return;
+            
+            const currentVal = coinSelect.value;
+            const isDefault = categoryOptions[currentTab] && categoryOptions[currentTab].some(opt => opt.value === currentVal);
+            
+            // 只有自己新增的標的才會出現刪除鍵
+            delBtn.style.display = isDefault ? 'none' : 'inline-block';
+        }
+
+        // 【新增】內建熱門標的字典 (供搜尋提示使用)
+        const dictionary = {
+            'tw_stock': ['2330 台積電', '2317 鴻海', '2454 聯發科', '0050 元大台灣50', '0056 元大高股息', '00878 國泰永續高股息', '00929 復華台灣科技優息', '2881 富邦金', '2891 中信金', '2603 長榮', '2308 台達電', '3231 緯創', '2382 廣達'],
+            'us_stock': ['AAPL Apple', 'MSFT Microsoft', 'NVDA NVIDIA', 'GOOGL Alphabet', 'AMZN Amazon', 'META Meta', 'TSLA Tesla', 'BRK.B Berkshire', 'SPY S&P 500 ETF', 'QQQ Nasdaq ETF', 'VOO Vanguard S&P 500', 'AMD AMD', 'PLTR Palantir', 'TSM 台積電ADR', 'AVGO Broadcom'],
+            'crypto': ['BTC Bitcoin', 'ETH Ethereum', 'SOL Solana', 'BNB Binance Coin', 'XRP Ripple', 'ADA Cardano', 'AVAX Avalanche', 'DOGE Dogecoin', 'DOT Polkadot', 'LINK Chainlink', 'NEAR Near Protocol']
+        };
+
+        // 【新增】智慧過濾與顯示選單
+        function filterTickers() {
+            const input = document.getElementById('new-ticker-input');
+            const list = document.getElementById('autocomplete-list');
+            const filter = input.value.trim().toUpperCase();
+            list.innerHTML = '';
+            
+            if (!filter) {
+                list.style.display = 'none';
+                return;
+            }
+
+            let matches = dictionary[currentTab] ? dictionary[currentTab].filter(t => t.toUpperCase().includes(filter)) : [];
+            
+            if (matches.length === 0) {
+                list.style.display = 'none';
+                return;
+            }
+
+            matches.forEach(match => {
+                let div = document.createElement('div');
+                div.className = 'autocomplete-item';
+                
+                // 將使用者輸入的關鍵字標示藍色粗體
+                let regex = new RegExp(filter, "gi");
+                div.innerHTML = match.replace(regex, "<span class='autocomplete-highlight'>$&</span>");
+                
+                div.onclick = function() {
+                    // 點擊後，只擷取代號部分 (空格前面的字)
+                    input.value = match.split(' ')[0];
+                    list.style.display = 'none';
+                };
+                list.appendChild(div);
+            });
+            
+            list.style.display = 'block';
+        }
+
+        // 【新增】點擊網頁其他地方時，自動收起下拉選單
+        document.addEventListener('click', function(e) {
+            if (e.target.id !== 'new-ticker-input') {
+                const list = document.getElementById('autocomplete-list');
+                if(list) list.style.display = 'none';
+            }
+        });
 
         function toggleSortOrder() {
             sortOrder = sortOrder === 'desc' ? 'asc' : 'desc';
