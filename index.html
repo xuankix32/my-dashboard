@@ -800,20 +800,42 @@
         }
 
         function updateTrendChart() {
-            let globalCurrency = tabCurrencies[currentTab]; // 【新增】取得當前頁籤專屬的計價幣別
+            let globalCurrency = tabCurrencies[currentTab]; 
+            
             if (trendChartInstance) trendChartInstance.destroy();
             const ctx = document.getElementById('trendChart').getContext('2d');
 
             let sortedSnaps = [...snapshots].sort((a,b) => new Date(a.date) - new Date(b.date));
-            
+
+            // 【新增】取得下拉選單的時間區間設定，並過濾資料
+            const timeFilterEl = document.getElementById('trend-time-filter');
+            const filterValue = timeFilterEl ? timeFilterEl.value : 'all';
+
+            if (filterValue !== 'all' && sortedSnaps.length > 0) {
+                // 以最新一筆快照的時間為基準往前推
+                const latestDate = new Date(sortedSnaps[sortedSnaps.length - 1].date);
+                let cutoffTime = 0;
+
+                if (filterValue === '1d') {
+                    cutoffTime = latestDate.getTime() - (24 * 60 * 60 * 1000); // 1天
+                } else if (filterValue === '1w') {
+                    cutoffTime = latestDate.getTime() - (7 * 24 * 60 * 60 * 1000); // 7天
+                } else if (filterValue === '1m') {
+                    cutoffTime = latestDate.getTime() - (30 * 24 * 60 * 60 * 1000); // 30天
+                } else if (filterValue === '1y') {
+                    cutoffTime = latestDate.getTime() - (365 * 24 * 60 * 60 * 1000); // 365天
+                }
+
+                // 只保留大於等於截止時間的資料
+                sortedSnaps = sortedSnaps.filter(s => new Date(s.date).getTime() >= cutoffTime);
+            }
+
             let labels = sortedSnaps.map(s => {
                 let d = new Date(s.date);
                 return `${d.getMonth()+1}/${d.getDate()} ${d.getHours().toString().padStart(2, '0')}:00`;
             });
 
-            // 【新增】從瀏覽器讀取「走勢圖隱藏狀態」的記憶
             let hiddenState = JSON.parse(localStorage.getItem('wealthTrendLegend')) || {};
-
             let datasets = [];
 
             if (currentTab === 'all') {
@@ -829,7 +851,7 @@
                         pointBackgroundColor: '#58a6ff',
                         pointBorderColor: '#fff',
                         pointRadius: 3,
-                        hidden: hiddenState[`總現值 (${globalCurrency})`] === true // 套用記憶狀態
+                        hidden: hiddenState[`總現值 (${globalCurrency})`] === true 
                     },
                     {
                         label: `加密貨幣 (${globalCurrency})`,
@@ -874,9 +896,8 @@
                             let crypto = globalCurrency === 'USD' ? s.crypto_usd : s.crypto_twd;
                             let tw = globalCurrency === 'USD' ? s.tw_stock_usd : s.tw_stock_twd;
                             let us = globalCurrency === 'USD' ? s.us_stock_usd : s.us_stock_twd;
-                            // 【修改】將算出來的值四捨五入到小數點後兩位，消除浮點數誤差
                             let cashVal = total - crypto - tw - us;
-                            return Math.round(cashVal * 100) / 100;
+                            return Math.round(cashVal * 100) / 100; // 四捨五入消除浮點數誤差
                         }),
                         borderColor: '#3fb950', 
                         backgroundColor: 'transparent', 
@@ -938,12 +959,10 @@
                         legend: { 
                             display: true, 
                             labels: { color: '#c9d1d9', usePointStyle: true, boxWidth: 8 },
-                            // 【新增】監聽圖例點擊事件，儲存使用者的開關設定
                             onClick: function(e, legendItem, legend) {
                                 const index = legendItem.datasetIndex;
                                 const ci = legend.chart;
                                 
-                                // 切換線條顯示/隱藏
                                 if (ci.isDatasetVisible(index)) {
                                     ci.hide(index);
                                     legendItem.hidden = true;
@@ -952,7 +971,6 @@
                                     legendItem.hidden = false;
                                 }
                                 
-                                // 將最新狀態存入瀏覽器記憶體
                                 let savedState = JSON.parse(localStorage.getItem('wealthTrendLegend')) || {};
                                 savedState[legendItem.text] = legendItem.hidden;
                                 localStorage.setItem('wealthTrendLegend', JSON.stringify(savedState));
