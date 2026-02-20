@@ -70,7 +70,11 @@
         <div class="form-group">
             <input type="datetime-local" id="trade-date" title="修改交易時間" style="display: none;">
             <select id="trade-type"><option value="buy">買入 (Buy)</option><option value="sell">賣出 (Sell)</option></select>
-            <select id="trade-coin" style="width: 200px;"></select>
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <select id="trade-coin" style="width: 140px;"></select>
+                <input type="text" id="new-ticker-input" placeholder="自訂代號(例: AAPL)" style="width: 140px; padding: 10px; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: #c9d1d9; outline: none;">
+                <button onclick="addNewTicker()" type="button" class="sort-btn" style="padding: 10px; background: #21262d;">➕ 加入選單</button>
+            </div>
             <input type="number" id="trade-amount" placeholder="數量 (例: 100)" step="any" style="width: 140px;">
             <input type="number" id="trade-price" placeholder="單價 (NT$ / USD)" step="any" style="width: 150px;">
             <button id="save-btn" class="action-btn" onclick="saveTrade()">儲存</button>
@@ -238,16 +242,38 @@
         function updateCoinDropdown(category) {
             const coinSelect = document.getElementById('trade-coin');
             coinSelect.innerHTML = '';
+            
+            let allOptions = [];
+            // 1. 載入預設標的
             if (categoryOptions[category]) {
-                categoryOptions[category].forEach(opt => {
-                    const optionElement = document.createElement('option');
-                    optionElement.value = opt.value;
-                    optionElement.innerText = opt.text;
-                    coinSelect.appendChild(optionElement);
+                allOptions = [...categoryOptions[category]];
+            }
+
+            // 2. 載入你手動新增的「自訂標的」
+            let customTickers = JSON.parse(localStorage.getItem('wealthCustomTickers')) || { 'tw_stock': [], 'us_stock': [], 'crypto': [] };
+            if (customTickers[category]) {
+                customTickers[category].forEach(ticker => {
+                    // 避免跟預設的重複
+                    if (!allOptions.find(opt => opt.value === ticker)) {
+                        allOptions.push({ value: ticker, text: `${ticker} (自訂)` });
+                    }
                 });
             }
+
+            // 3. 畫出選單
+            allOptions.forEach(opt => {
+                const optionElement = document.createElement('option');
+                optionElement.value = opt.value;
+                optionElement.innerText = opt.text;
+                coinSelect.appendChild(optionElement);
+            });
+
             document.getElementById('trade-price').placeholder = category === 'tw_stock' ? '單價 (NT$)' : '單價 (USD)';
             document.getElementById('trade-amount').placeholder = (category === 'tw_stock' || category === 'us_stock') ? '股數 (例: 1000)' : '數量 (例: 100)';
+            
+            // 切換頁籤時，順便把自訂輸入框清空
+            const newTickerInput = document.getElementById('new-ticker-input');
+            if(newTickerInput) newTickerInput.value = '';
         }
 
         function toggleSortOrder() {
@@ -387,6 +413,54 @@
                 await fetch(API_URL, { method: 'POST', body: JSON.stringify(trades) });
                 if(!isSilent) setStatus('🟢 成功儲存至 Google 雲端！', 'success');
             } catch (error) { setStatus('🔴 雲端儲存失敗，已暫存本機', 'error'); }
+        }
+
+        async function addNewTicker() {
+            if (currentTab === 'all') {
+                alert('請先切換到「台股」、「美股」或「加密貨幣」頁籤再新增標的！');
+                return;
+            }
+
+            const inputEl = document.getElementById('new-ticker-input');
+            let newTicker = inputEl.value.trim().toUpperCase();
+            if (!newTicker) return;
+
+            // 台股自動補零 (例如輸入 2330 還是 2330，但輸入 01 會變 0001)
+            if (currentTab === 'tw_stock' && /^\d+$/.test(newTicker) && newTicker.length < 4) {
+                newTicker = newTicker.padStart(4, '0');
+            }
+
+            let customTickers = JSON.parse(localStorage.getItem('wealthCustomTickers')) || { 'tw_stock': [], 'us_stock': [], 'crypto': [] };
+            if (!customTickers[currentTab]) customTickers[currentTab] = [];
+            
+            if (!customTickers[currentTab].includes(newTicker)) {
+                // 1. 存入前端記憶體
+                customTickers[currentTab].push(newTicker);
+                localStorage.setItem('wealthCustomTickers', JSON.stringify(customTickers));
+                
+                // 2. 立即更新下拉選單並自動幫你選中它！
+                updateCoinDropdown(currentTab);
+                document.getElementById('trade-coin').value = newTicker;
+                inputEl.value = '';
+
+                // 3. 在背景呼叫 Google 雲端，自動寫入 Prices 表格與公式
+                setStatus('⏳ 正在將新標的寫入 Google 雲端...', 'loading');
+                try {
+                    await fetch(API_URL, { 
+                        method: 'POST', 
+                        body: JSON.stringify({ type: 'addTicker', category: currentTab, ticker: newTicker }) 
+                    });
+                    setStatus('🟢 新標的已成功加入資料庫並開始抓取報價！', 'success');
+                    // 同步一次最新價格
+                    syncWithCloud(); 
+                } catch(e) {
+                    setStatus('🔴 寫入新標的失敗，請檢查網路狀態', 'error');
+                }
+            } else {
+                alert('這個標的已經在選單裡囉！');
+                inputEl.value = '';
+                document.getElementById('trade-coin').value = newTicker;
+            }
         }
 
         async function saveTrade() {
