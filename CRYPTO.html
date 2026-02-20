@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全方位資產戰情室 (Pro Max版)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        body { font-family: 'Segoe UI', -apple-system, sans-serif; background-color: #0d1117; color: #c9d1d9; padding: 20px; max-width: 1200px; margin: 0 auto; }
+        .grid { display: grid; grid-template-columns: 3fr 1fr; gap: 20px; align-items: start; }
+        .card { background-color: #161b22; padding: 25px; border-radius: 12px; border: 1px solid #30363d; box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+        
+        .tabs { display: flex; gap: 10px; margin-bottom: 25px; border-bottom: 1px solid #30363d; padding-bottom: 15px; }
+        .tab-btn { background: transparent; color: #8b949e; border: 1px solid transparent; padding: 10px 20px; font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+        .tab-btn:hover { background: #21262d; color: #c9d1d9; }
+        .tab-btn.active { background: #1f6feb; color: white; border-color: #1f6feb; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+        th, td { padding: 14px 10px; text-align: right; border-bottom: 1px solid #21262d; }
+        th { color: #8b949e; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+        th:first-child, td:first-child { text-align: left; }
+        tbody tr { transition: background-color 0.2s ease; }
+        tbody tr:hover { background-color: #1c2128; } 
+
+        .coin-name { font-weight: bold; color: #58a6ff; font-size: 16px; white-space: nowrap; }
+        .badge { padding: 6px 10px; border-radius: 6px; font-weight: 600; font-size: 13px; display: inline-block; min-width: 70px; text-align: center; }
+        .profit-badge { background-color: rgba(46, 160, 67, 0.15); color: #3fb950; border: 1px solid rgba(46, 160, 67, 0.4); }
+        .loss-badge { background-color: rgba(248, 81, 73, 0.1); color: #ff7b72; border: 1px solid rgba(248, 81, 73, 0.4); }
+        .neutral-badge { background-color: rgba(139, 148, 158, 0.1); color: #8b949e; border: 1px solid rgba(139, 148, 158, 0.4); }
+        .tag-badge { background: #30363d; color: #c9d1d9; font-size: 11px; padding: 4px 6px; border-radius: 4px; margin-left: 8px;}
+
+        .percent-label { display: block; font-size: 11px; margin-top: 2px; font-weight: normal; opacity: 0.9; }
+
+        .summary-stats { text-align: right; }
+        .summary-stats h2 { margin: 5px 0; font-size: 24px; font-weight: bold; color: #fff; }
+        .summary-stats h3 { margin: 8px 0; font-size: 16px; font-weight: normal; color: #8b949e; }
+        .total-number { font-weight: bold; font-family: 'Courier New', Courier, monospace; letter-spacing: -0.5px; }
+
+        .form-group { margin-bottom: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;}
+        input, select { padding: 10px; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: #c9d1d9; outline: none; transition: 0.3s; }
+        input[type="datetime-local"] { font-family: 'Segoe UI', sans-serif; }
+        input:disabled { background-color: #21262d; color: #8b949e; cursor: not-allowed; border-color: #21262d; }
+        input:focus:not(:disabled), select:focus { border-color: #58a6ff; }
+        button.action-btn { background: #238636; color: white; cursor: pointer; font-weight: bold; border: none; padding: 10px 18px; border-radius: 6px; transition: 0.2s; }
+        button.action-btn:hover { background: #2ea043; }
+        
+        .table-scroll-container { max-height: 400px; overflow-y: auto; border: 1px solid #30363d; border-radius: 8px; }
+        thead th { position: sticky; top: 0; background-color: #161b22; z-index: 1; }
+
+        .sort-btn { background: #21262d; border: 1px solid #30363d; color: #c9d1d9; padding: 6px 12px; font-size: 13px; border-radius: 6px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 5px;}
+        .sort-btn:hover { background: #30363d; color: #fff; }
+
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } .tabs { overflow-x: auto; white-space: nowrap; } }
+    </style>
+</head>
+<body>
+
+    <h1 style="text-align: center; margin-bottom: 20px; font-weight: 800; letter-spacing: 1px;">🚀 戰情室 Dashboard</h1>
+    
+    <div class="tabs" id="nav-tabs">
+        <button class="tab-btn" onclick="switchTab('tw_stock')">🇹🇼 台股</button>
+        <button class="tab-btn" onclick="switchTab('us_stock')">🇺🇸 美股</button>
+        <button class="tab-btn active" onclick="switchTab('crypto')">🪙 加密貨幣</button>
+        <button class="tab-btn" onclick="switchTab('all')">🌐 綜合分析</button>
+    </div>
+    
+    <div class="card" id="form-card" style="margin-bottom: 25px;">
+        <h3 id="form-title" style="margin-top:0;">➕ 新增交易紀錄</h3>
+        <div class="form-group">
+            <input type="datetime-local" id="trade-date" title="修改交易時間" style="display: none;">
+            <select id="trade-type"><option value="buy">買入 (Buy)</option><option value="sell">賣出 (Sell)</option></select>
+            <select id="trade-coin" style="width: 200px;"></select>
+            <input type="number" id="trade-amount" placeholder="數量 (例: 100)" step="any" style="width: 140px;">
+            <input type="number" id="trade-price" placeholder="單價 (NT$ / USD)" step="any" style="width: 150px;">
+            <button id="save-btn" class="action-btn" onclick="saveTrade()">儲存</button>
+            <button id="cancel-btn" class="action-btn" onclick="cancelEdit()" style="background: #30363d; display: none;">取消</button>
+            <button onclick="clearCurrentCategoryTrades()" style="background: transparent; border: 1px solid #f85149; color: #ff7b72; margin-left: auto; padding: 10px 18px; border-radius: 6px; cursor:pointer;">清空此分類</button>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="card" style="overflow-x: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin-top:0;" id="summary-title">📊 資產與獲利明細</h3>
+                <span id="api-status" style="font-size: 12px; font-weight:bold; color: #8b949e; background: #21262d; padding: 6px 10px; border-radius: 4px;">⏳ 正在連線至雲端資料庫...</span>
+            </div>
+            <table>
+                <thead id="summary-header-row"></thead>
+                <tbody id="summary-body"></tbody>
+            </table>
+            
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 20px; padding-top: 15px; border-top: 1px solid #30363d;">
+                <div id="exchange-rate-container" style="text-align: left;">
+                    <div style="font-size: 12px; color: #8b949e; margin-bottom: 8px;">
+                        💱 雲端即時匯率：1 USD = <span id="current-ex-rate" style="color: #c9d1d9; font-weight: bold;">讀取中...</span> TWD
+                    </div>
+                    <button class="sort-btn" id="currency-toggle-btn" onclick="toggleGlobalCurrency()">🔄 切換為 TWD 計價</button>
+                </div>
+
+                <div class="summary-stats">
+                    <h2>總現值: <span id="total-value" class="total-number" style="color: #58a6ff;">$0.00</span> 
+                        <span id="exchange-note" style="font-size: 14px; color: #8b949e; font-weight:normal;">(以 USD 計價)</span>
+                    </h2>
+                    <h3>未實現總損益: <span id="total-unrealized" class="badge neutral-badge">$0.00</span></h3>
+                    <h3>累計已實現損益: <span id="total-realized" class="badge neutral-badge">$0.00</span></h3>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card" style="display: flex; flex-direction: column; gap: 25px;">
+            <div style="display: flex; justify-content: center; margin-bottom: 5px; z-index: 10;">
+                <button class="sort-btn" id="pie-mode-btn" onclick="togglePieChartMode()" style="display: none; padding: 6px 12px; font-size: 12px; border-color: #58a6ff; color: #58a6ff;">🔄 看大分類佔比</button>
+            </div>
+
+            <div style="width: 100%;">
+                <h3 style="margin: 0 0 5px 0; font-size: 16px; color: #e0e0e0;">📊 現值佔比分佈</h3>
+                <div style="width: 100%; max-width: 250px; margin: 0 auto;">
+                    <canvas id="portfolioChart"></canvas>
+                </div>
+            </div>
+            <div style="width: 100%; height: 1px; background-color: #30363d;"></div>
+            <div style="width: 100%;">
+                <h3 style="margin: 0 0 5px 0; font-size: 16px; color: #e0e0e0;">💰 投入資金佔比</h3>
+                <div style="width: 100%; max-width: 250px; margin: 0 auto;">
+                    <canvas id="costChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top: 25px; display: none;" id="trend-card">
+        <h3 style="margin: 0 0 15px 0;">📈 總資產走勢 (Trend)</h3>
+        <div style="width: 100%; height: 280px;">
+            <canvas id="trendChart"></canvas>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top: 25px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+            <h3 style="margin:0;">📜 交易歷史 (Log)</h3>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <select id="history-filter" onchange="renderDashboardUI()" style="padding: 6px 10px; font-size: 13px; border-radius: 6px; border: 1px solid #30363d; background: #21262d; color: #c9d1d9; outline: none; cursor: pointer;">
+                    <option value="all">全部標的</option>
+                </select>
+                <button class="sort-btn" id="sort-toggle-btn" onclick="toggleSortOrder()">⏳ 最新交易在前</button>
+            </div>
+        </div>
+        <div class="table-scroll-container">
+            <table>
+                <thead><tr id="history-header-row"></tr></thead>
+                <tbody id="history-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "https://script.google.com/macros/s/AKfycbyZHgi0_RNXa0KcXI4BvUpxA16V1M8508hkw5sy4NdDjs9nYu1RvTh6jhoTBLtZmvyWIg/exec"; 
+
+        let trades = [];
+        let priceCache = {}; 
+        let cashTWD = 0; 
+        let stableCoinUSD = 0; 
+        let snapshots = []; 
+        let currentTab = 'crypto'; 
+        let editingId = null; 
+        let chartInstance = null;
+        let costChartInstance = null;
+        let trendChartInstance = null; 
+        let sortOrder = 'desc'; 
+
+        let currentExchangeRate = 32.5; 
+        let globalCurrency = localStorage.getItem('wealthCurrency') || 'USD';    
+        let pieChartMode = localStorage.getItem('wealthPieMode') || 'detail'; 
+
+        const predefinedColors = { 'BTC': '#f7931a', 'ETH': '#627eea', 'ADA': '#0033ad', '2330': '#d32f2f', '0050': '#1976d2', '現金': '#3fb950', 'USDT/USDC': '#26a17b' };
+        const apiIds = { 'BTC': 'bitcoin', 'ETH': 'ethereum', 'ADA': 'cardano' };
+        const categoryNames = { 'tw_stock': '台股', 'us_stock': '美股', 'crypto': '加密貨幣', 'all': '綜合分析' };
+
+        const categoryOptions = {
+            'tw_stock': [{ value: '2330', text: '2330 (台積電)' }, { value: '0050', text: '0050 (元大台灣50)' }],
+            'us_stock': [{ value: 'CRCL', text: 'CRCL' }, { value: 'NVDA', text: 'NVDA' }, { value: 'QQQ', text: 'QQQ' }, { value: 'TSLA', text: 'TSLA' }, { value: 'VOO', text: 'VOO' }],
+            'crypto': [{ value: 'BTC', text: 'BTC (比特幣)' }, { value: 'ETH', text: 'ETH (以太幣)' }, { value: 'ADA', text: 'ADA (Cardano)' }]
+        };
+
+        const formatMoney = (num, decimals = 2, currency = 'USD') => {
+            const symbol = currency === 'TWD' ? 'NT$' : '$';
+            return symbol + num.toLocaleString('en-US', {minimumFractionDigits: decimals, maximumFractionDigits: decimals});
+        };
+        const formatAmount = (num) => num.toLocaleString('en-US', {maximumFractionDigits: 5});
+        
+        const formatDisplayDate = (dateStr) => {
+            try {
+                const d = new Date(dateStr);
+                if (isNaN(d.getTime())) return dateStr; 
+                return d.toLocaleString('zh-TW', { 
+                    hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', 
+                    hour: '2-digit', minute: '2-digit', second: '2-digit' 
+                }).replace(/-/g, '/');
+            } catch(e) { return dateStr; }
+        };
+
+        function formatInputDate(dateStr) {
+            try { const d = dateStr ? new Date(dateStr) : new Date(); const tzoffset = d.getTimezoneOffset() * 60000; return new Date(d - tzoffset).toISOString().slice(0, 16); } 
+            catch(e) { return new Date().toISOString().slice(0, 16); }
+        }
+
+        function stringToColor(str) {
+            if (predefinedColors[str.toUpperCase()]) return predefinedColors[str.toUpperCase()];
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) { hash = str.charCodeAt(i) + ((hash << 5) - hash); }
+            let color = '#';
+            for (let i = 0; i < 3; i++) { 
+                let value = (hash >> (i * 8)) & 0xFF;
+                value = Math.max(value, 80); 
+                color += ('00' + value.toString(16)).substr(-2);
+            }
+            return color;
+        }
+
+        function setStatus(msg, type) {
+            const el = document.getElementById('api-status');
+            el.innerHTML = msg;
+            if(type === 'loading') el.style.color = '#f7931a';
+            if(type === 'success') el.style.color = '#3fb950';
+            if(type === 'error') el.style.color = '#ff7b72';
+        }
+
+        function updateCoinDropdown(category) {
+            const coinSelect = document.getElementById('trade-coin');
+            coinSelect.innerHTML = '';
+            if (categoryOptions[category]) {
+                categoryOptions[category].forEach(opt => {
+                    const optionElement = document.createElement('option');
+                    optionElement.value = opt.value;
+                    optionElement.innerText = opt.text;
+                    coinSelect.appendChild(optionElement);
+                });
+            }
+            document.getElementById('trade-price').placeholder = category === 'tw_stock' ? '單價 (NT$)' : '單價 (USD)';
+            document.getElementById('trade-amount').placeholder = (category === 'tw_stock' || category === 'us_stock') ? '股數 (例: 1000)' : '數量 (例: 100)';
+        }
+
+        function toggleSortOrder() {
+            sortOrder = sortOrder === 'desc' ? 'asc' : 'desc';
+            document.getElementById('sort-toggle-btn').innerText = sortOrder === 'desc' ? '⏳ 最舊交易在前' : '⏳ 最新交易在前';
+            renderDashboardUI();
+        }
+
+        function toggleGlobalCurrency() {
+            globalCurrency = globalCurrency === 'USD' ? 'TWD' : 'USD';
+            localStorage.setItem('wealthCurrency', globalCurrency); 
+            updateCurrencyUI(); 
+            renderDashboardUI();
+        }
+
+        function updateCurrencyUI() {
+            const btn = document.getElementById('currency-toggle-btn');
+            if(btn) btn.innerText = globalCurrency === 'USD' ? '🔄 切換為 TWD 計價' : '🔄 切換為 USD 計價';
+            const note = document.getElementById('exchange-note');
+            if(note) note.innerText = globalCurrency === 'USD' ? '(以 USD 計價)' : '(以 TWD 計價)';
+        }
+
+        function togglePieChartMode() {
+            pieChartMode = pieChartMode === 'detail' ? 'category' : 'detail';
+            localStorage.setItem('wealthPieMode', pieChartMode);
+            renderDashboardUI();
+        }
+
+        function switchTab(tabId) {
+            currentTab = tabId;
+            localStorage.setItem('wealthLastTab', tabId); 
+
+            // 【新增】每次切換頁籤時，將歷史紀錄的下拉選單重置為「全部標的」
+            const filterEl = document.getElementById('history-filter');
+            if (filterEl) filterEl.value = 'all';
+
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            let targetBtn = document.querySelector(`button[onclick*="'${tabId}'"]`);
+            if (targetBtn) targetBtn.classList.add('active');
+
+            const formCard = document.getElementById('form-card');
+            
+            const trendCard = document.getElementById('trend-card');
+            if(trendCard && snapshots.length > 0) trendCard.style.display = 'block';
+
+            if (currentTab === 'all') {
+                if(formCard) formCard.style.display = 'none';
+                document.getElementById('summary-title').innerText = '🌐 綜合資產與獲利明細';
+            } else {
+                if(formCard) formCard.style.display = 'block';
+                document.getElementById('summary-title').innerText = `📊 ${categoryNames[currentTab]} 資產明細`;
+                updateCoinDropdown(currentTab); 
+                cancelEdit(); 
+            }
+            if (trades.length > 0) renderDashboardUI();
+        }
+
+        let savedTab = localStorage.getItem('wealthLastTab') || 'crypto';
+        switchTab(savedTab);
+        updateCurrencyUI(); 
+        document.getElementById('trade-date').value = formatInputDate();
+
+        async function updateCashValue(val) {
+            cashTWD = parseFloat(val) || 0;
+            renderDashboardUI();
+            try { await fetch(API_URL, { method: 'POST', body: JSON.stringify({ type: 'updateCash', value: cashTWD }) }); } catch(e) {}
+        }
+
+        async function updateStableCoinValue(val) {
+            stableCoinUSD = parseFloat(val) || 0;
+            renderDashboardUI();
+            try { await fetch(API_URL, { method: 'POST', body: JSON.stringify({ type: 'updateStableCoin', value: stableCoinUSD }) }); } catch(e) {}
+        }
+
+        async function syncWithCloud() {
+            try {
+                setStatus('⏳ 正在與 Google 雲端同步...', 'loading');
+                const response = await fetch(API_URL);
+                
+                let text = await response.text();
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch(e) {
+                    throw new Error("伺服器未回傳 JSON");
+                }
+
+                if (data.status === "error") throw new Error(data.message);
+
+                let localTrades = JSON.parse(localStorage.getItem('wealthTrades')) || [];
+                if (data.trades && data.trades.length === 0 && localTrades.length > 0) {
+                    trades = localTrades;
+                    await saveDataToCloud(true); 
+                } else { trades = data.trades || []; }
+                
+                cashTWD = data.cashTWD || 0; 
+                stableCoinUSD = data.stableCoinUSD || 0; 
+                snapshots = data.snapshots || [];
+
+                localStorage.setItem('wealthTrades', JSON.stringify(trades));
+                
+                if (data.livePrices) {
+                    Object.keys(data.livePrices).forEach(ticker => { 
+                        priceCache[ticker] = data.livePrices[ticker]; 
+                    });
+                    if (data.livePrices['USD-TWD']) { 
+                        currentExchangeRate = data.livePrices['USD-TWD']; 
+                    }
+                }
+                
+                setStatus('🟢 雲端資料庫同步完成', 'success');
+                renderDashboardUI();
+            } catch (error) {
+                console.error(error);
+                setStatus(`🔴 連線異常: ${error.message || '未知錯誤'}`, 'error');
+                trades = JSON.parse(localStorage.getItem('wealthTrades')) || [];
+                renderDashboardUI();
+            }
+        }
+
+        async function saveDataToCloud(isSilent = false) {
+            localStorage.setItem('wealthTrades', JSON.stringify(trades));
+            if(!isSilent) setStatus('⏳ 正在儲存至 Google 雲端...', 'loading');
+            try {
+                await fetch(API_URL, { method: 'POST', body: JSON.stringify(trades) });
+                if(!isSilent) setStatus('🟢 成功儲存至 Google 雲端！', 'success');
+            } catch (error) { setStatus('🔴 雲端儲存失敗，已暫存本機', 'error'); }
+        }
+
+        async function saveTrade() {
+            const type = document.getElementById('trade-type').value;
+            const coin = document.getElementById('trade-coin').value.trim().toUpperCase(); 
+            const amount = parseFloat(document.getElementById('trade-amount').value);
+            const price = parseFloat(document.getElementById('trade-price').value);
+            const amountLabel = (currentTab === 'tw_stock' || currentTab === 'us_stock') ? '股數' : '數量';
+            if(!coin || !amount || !price) { alert(`請填寫${amountLabel}與價格`); return; }
+            if (!editingId) {
+                const newId = Date.now().toString(); 
+                const finalDate = new Date().toLocaleString('zh-TW', { hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/-/g, '/');
+                trades.push({ id: newId, category: currentTab, date: finalDate, type, coin, amount, price });
+                document.getElementById('trade-amount').value = '';
+                document.getElementById('trade-price').value = '';
+            } else {
+                const targetIndex = trades.findIndex(t => t.id === editingId);
+                if (targetIndex > -1) {
+                    const dateInput = document.getElementById('trade-date').value;
+                    const finalDate = dateInput ? dateInput.replace('T', ' ') : new Date().toLocaleString('zh-TW', { hour12: false });
+                    trades[targetIndex] = { ...trades[targetIndex], date: finalDate, type, coin, amount, price };
+                }
+                cancelEdit(); 
+            }
+            renderDashboardUI(); 
+            await saveDataToCloud();
+        }
+
+        async function deleteTrade(id) {
+            if(confirm('確定要從雲端資料庫刪除這筆紀錄嗎？')) {
+                trades = trades.filter(t => t.id !== id.toString());
+                renderDashboardUI(); 
+                await saveDataToCloud();
+            }
+        }
+
+        async function clearCurrentCategoryTrades() {
+            const msg = currentTab === 'all' ? '確定要清空【所有】雲端資產紀錄嗎？' : `確定要清空【${categoryNames[currentTab]}】的雲端紀錄嗎？`;
+            if(confirm(msg)) {
+                if(currentTab === 'all') { trades = []; } 
+                else { trades = trades.filter(t => t.category !== currentTab); }
+                renderDashboardUI();
+                await saveDataToCloud();
+            }
+        }
+
+        function editTrade(id) {
+            editingId = id.toString();
+            const t = trades.find(trade => trade.id === editingId);
+            if(!t) return;
+            document.getElementById('trade-date').value = formatInputDate(t.date);
+            document.getElementById('trade-date').style.display = 'inline-block';
+            document.getElementById('trade-type').value = t.type;
+            document.getElementById('trade-coin').value = t.coin;
+            document.getElementById('trade-amount').value = t.amount;
+            document.getElementById('trade-price').value = t.price;
+            document.getElementById('form-title').innerText = `✏️ 修改交易紀錄 (${t.coin})`;
+            const saveBtn = document.getElementById('save-btn');
+            saveBtn.innerText = '儲存修改';
+            saveBtn.style.background = '#1f6feb';
+            document.getElementById('cancel-btn').style.display = 'inline-block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function cancelEdit() {
+            editingId = null;
+            document.getElementById('trade-date').value = formatInputDate();
+            document.getElementById('trade-date').style.display = 'none';
+            const coinSelect = document.getElementById('trade-coin');
+            if(coinSelect.options.length > 0) coinSelect.selectedIndex = 0;
+            document.getElementById('trade-amount').value = '';
+            document.getElementById('trade-price').value = '';
+            document.getElementById('form-title').innerText = '➕ 新增交易紀錄';
+            const saveBtn = document.getElementById('save-btn');
+            saveBtn.innerText = '儲存';
+            saveBtn.style.background = '#238636';
+            document.getElementById('cancel-btn').style.display = 'none';
+        }
+
+        function renderDashboardUI() {
+            trades.sort((a, b) => new Date(a.date) - new Date(b.date));
+            document.getElementById('current-ex-rate').innerText = currentExchangeRate.toFixed(2);
+
+            let filteredTrades = currentTab === 'all' ? [...trades] : trades.filter(t => t.category === currentTab);
+            
+            // 【新增】動態產生歷史紀錄的過濾下拉選項
+            let historyFilterSelect = document.getElementById('history-filter');
+            let currentFilter = historyFilterSelect.value;
+            let uniqueCoins = [...new Set(filteredTrades.map(t => t.coin))].sort();
+            
+            // 如果選取的標的不在當前頁籤中，就自動跳回「全部標的」
+            if (currentFilter !== 'all' && !uniqueCoins.includes(currentFilter)) {
+                currentFilter = 'all';
+            }
+            
+            let filterOptionsHTML = `<option value="all">全部標的</option>`;
+            uniqueCoins.forEach(coin => {
+                let isSelected = coin === currentFilter ? 'selected' : '';
+                filterOptionsHTML += `<option value="${coin}" ${isSelected}>${coin}</option>`;
+            });
+            historyFilterSelect.innerHTML = filterOptionsHTML;
+
+            let portfolio = {};
+            let tradesForDisplay = [];
+
+            filteredTrades.forEach(t => {
+                if (!portfolio[t.coin]) { portfolio[t.coin] = { amt: 0, cost: 0, realized: 0, category: t.category }; }
+                let realizedPnL = null; 
+                if(t.type === 'buy') {
+                    portfolio[t.coin].amt += t.amount;
+                    portfolio[t.coin].cost += (t.amount * t.price);
+                } else {
+                    if (portfolio[t.coin].amt > 0) {
+                        let avgCost = portfolio[t.coin].cost / portfolio[t.coin].amt;
+                        realizedPnL = (t.price - avgCost) * t.amount;
+                        portfolio[t.coin].realized += realizedPnL;
+                        portfolio[t.coin].amt -= t.amount;
+                        portfolio[t.coin].cost -= (t.amount * avgCost);
+                    } else { realizedPnL = 0; }
+                }
+                tradesForDisplay.push({ ...t, realizedPnL: realizedPnL });
+            });
+
+            const summaryHeaderRow = document.getElementById('summary-header-row');
+            let summaryAmtHeader = (currentTab === 'tw_stock' || currentTab === 'us_stock') ? '總股數' : (currentTab === 'all' ? '股數/持倉' : '總持倉');
+            summaryHeaderRow.innerHTML = `<tr><th>資產代號</th><th>${summaryAmtHeader}</th><th>平均成本</th><th>即時價</th><th>現值</th><th>未實現損益 (總漲跌幅)</th><th>累計已實現</th></tr>`;
+
+            const historyHeaderRow = document.getElementById('history-header-row');
+            let historyAmtHeader = (currentTab === 'tw_stock' || currentTab === 'us_stock') ? '股數' : '數量';
+            if(currentTab === 'all') {
+                historyHeaderRow.innerHTML = `<th>時間</th><th>動作</th><th>代號</th><th>分類</th><th>${historyAmtHeader}</th><th>成交單價</th><th>總額</th><th>已實現利潤</th>`;
+            } else {
+                historyHeaderRow.innerHTML = `<th>時間</th><th>動作</th><th>代號</th><th>${historyAmtHeader}</th><th>成交單價</th><th>總額</th><th>已實現利潤</th><th style="text-align: center;">操作</th>`;
+            }
+
+            const historyBody = document.getElementById('history-body');
+
+            // 【新增】根據下拉選單過濾歷史顯示資料
+            let finalHistoryTrades = tradesForDisplay;
+            if (currentFilter !== 'all') {
+                finalHistoryTrades = finalHistoryTrades.filter(t => t.coin === currentFilter);
+            }
+            let sortedTrades = sortOrder === 'desc' ? [...finalHistoryTrades].reverse() : [...finalHistoryTrades]; 
+            
+            historyBody.innerHTML = sortedTrades.map((t) => {
+                let itemCurrency = t.category === 'tw_stock' ? 'TWD' : 'USD';
+                let logCurrency = globalCurrency;
+                let logPrice = t.price;
+                let logRealized = t.realizedPnL;
+                if (globalCurrency === 'USD' && itemCurrency === 'TWD') {
+                    logPrice /= currentExchangeRate; if (logRealized !== null) logRealized /= currentExchangeRate;
+                } else if (globalCurrency === 'TWD' && itemCurrency === 'USD') {
+                    logPrice *= currentExchangeRate; if (logRealized !== null) logRealized *= currentExchangeRate;
+                }
+                let precision = (t.coin === 'BTC' || t.coin === 'ETH' || logCurrency === 'TWD' || t.category === 'us_stock') ? 2 : 4; 
+                let pnlBadge = '<span class="badge neutral-badge">-</span>';
+                if (t.type === 'sell' && logRealized !== null) {
+                    let pnlClass = logRealized > 0 ? 'profit-badge' : (logRealized < 0 ? 'loss-badge' : 'neutral-badge');
+                    let pnlSign = logRealized > 0 ? '+' : '';
+                    pnlBadge = `<span class="badge ${pnlClass}">${pnlSign}${formatMoney(logRealized, 2, logCurrency)}</span>`;
+                }
+                let typeBadge = t.type === 'buy' ? '<span style="color:#3fb950; font-weight:bold;">買入</span>' : '<span style="color:#ff7b72; font-weight:bold;">賣出</span>';
+                let categoryCellHTML = currentTab === 'all' ? `<td><span class="tag-badge">${categoryNames[t.category] || t.category}</span></td>` : '';
+                let actionCellHTML = currentTab === 'all' ? '' : `<td style="text-align: center;">
+                    <button onclick="editTrade('${t.id}')" style="background:transparent; color:#58a6ff; border:1px solid #58a6ff; padding:4px 8px; font-size:12px; margin-bottom: 2px;">修改</button>
+                    <button onclick="deleteTrade('${t.id}')" style="background:transparent; color:#ff7b72; border:1px solid #ff7b72; padding:4px 8px; font-size:12px;">刪除</button>
+                </td>`;
+
+                return `<tr>
+                    <td style="color:#8b949e; font-size:12px;">${formatDisplayDate(t.date)}</td>
+                    <td>${typeBadge}</td>
+                    <td class="coin-name">${t.coin}</td>
+                    ${categoryCellHTML}
+                    <td>${formatAmount(t.amount)}</td>
+                    <td>${formatMoney(logPrice, precision, logCurrency)}</td>
+                    <td>${formatMoney(t.amount * logPrice, 2, logCurrency)}</td>
+                    <td>${pnlBadge}</td>
+                    ${actionCellHTML}
+                </tr>`;
+            }).join('') || `<tr><td colspan="8" style="text-align:center; color:#8b949e; padding: 20px;">尚無相關紀錄</td></tr>`;
+
+            let totalValue = 0, totalUnrealizedPnl = 0, totalRealizedPnl = 0, totalOriginalCost = 0;
+            let chartRawLabels = [], chartData = [], chartColors = [];
+            let totalCost = 0, costData = [];
+            let summaryHTML = '';
+
+            let catTotals = {
+                'tw_stock': { val: 0, cost: 0, label: '台股', color: '#d32f2f' },
+                'us_stock': { val: 0, cost: 0, label: '美股', color: '#1976d2' },
+                'crypto': { val: 0, cost: 0, label: '加密貨幣', color: '#f7931a' },
+                'cash': { val: 0, cost: 0, label: '現金', color: '#3fb950' }
+            };
+
+            let sortedPortfolioKeys = Object.keys(portfolio).sort((a, b) => {
+                const catOrder = { 'tw_stock': 1, 'us_stock': 2, 'crypto': 3 };
+                let catA = portfolio[a].category; let catB = portfolio[b].category;
+                if (catOrder[catA] !== catOrder[catB]) return catOrder[catA] - catOrder[catB]; 
+                return a.localeCompare(b); 
+            });
+
+            for (let coin of sortedPortfolioKeys) {
+                if(portfolio[coin].amt <= 0 && portfolio[coin].realized === 0) continue; 
+                let itemCurrency = portfolio[coin].category === 'tw_stock' ? 'TWD' : 'USD';
+                let currentPrice = 0;
+                let currentCost = portfolio[coin].cost; 
+                let avgCostPrice = portfolio[coin].amt > 0 ? (currentCost / portfolio[coin].amt) : 0;
+                let isAwaitingAPI = false;
+                if (priceCache[coin] !== undefined) { currentPrice = priceCache[coin]; } 
+                else { currentPrice = avgCostPrice; isAwaitingAPI = true; }
+
+                let currentValue = portfolio[coin].amt * currentPrice;
+                let unrealizedPnl = portfolio[coin].amt > 0 ? (currentValue - currentCost) : 0;
+                let realizedPnl = portfolio[coin].realized;
+
+                let percentChange = 0;
+                if (currentCost > 0) { percentChange = (unrealizedPnl / currentCost) * 100; }
+
+                let rowCurrency = globalCurrency; 
+                let displayPrice = currentPrice; let displayAvgCost = avgCostPrice;
+                let displayValue = currentValue; let displayCost = currentCost;
+                let displayUnrealized = unrealizedPnl; let displayRealized = realizedPnl;
+
+                if (globalCurrency === 'USD' && itemCurrency === 'TWD') {
+                    displayPrice /= currentExchangeRate; displayAvgCost /= currentExchangeRate; displayValue /= currentExchangeRate;
+                    displayCost /= currentExchangeRate; displayUnrealized /= currentExchangeRate; displayRealized /= currentExchangeRate;
+                } else if (globalCurrency === 'TWD' && itemCurrency === 'USD') {
+                    displayPrice *= currentExchangeRate; displayAvgCost *= currentExchangeRate; displayValue *= currentExchangeRate;
+                    displayCost *= currentExchangeRate; displayUnrealized *= currentExchangeRate; displayRealized *= currentExchangeRate;
+                }
+
+                totalValue += displayValue;
+                totalCost += displayCost;
+                totalUnrealizedPnl += displayUnrealized;
+                totalRealizedPnl += displayRealized;
+                if (portfolio[coin].amt > 0) { totalOriginalCost += displayCost; }
+
+                if (portfolio[coin].amt > 0) {
+                    chartRawLabels.push(coin); chartData.push(displayValue);
+                    costData.push(displayCost); chartColors.push(stringToColor(coin)); 
+                    
+                    catTotals[portfolio[coin].category].val += displayValue;
+                    catTotals[portfolio[coin].category].cost += displayCost;
+                }
+
+                let pnlClass = displayUnrealized > 0 ? 'profit-badge' : (displayUnrealized < 0 ? 'loss-badge' : 'neutral-badge');
+                let pnlSign = displayUnrealized > 0 ? '+' : '';
+                let unrealizedCell = `<div class="badge ${pnlClass}">
+                    ${pnlSign}${formatMoney(displayUnrealized, 2, rowCurrency)}
+                    <span class="percent-label">${pnlSign}${percentChange.toFixed(2)}%</span>
+                </div>`;
+
+                let realizedBadge = `<span class="badge ${displayRealized > 0 ? 'profit-badge' : (displayRealized < 0 ? 'loss-badge' : 'neutral-badge')}">${displayRealized > 0 ? '+' : ''}${formatMoney(displayRealized, 2, rowCurrency)}</span>`;
+                let displayCatBadgeHTML = currentTab === 'all' ? `<span class="tag-badge" style="font-weight:normal; font-size:10px;">${categoryNames[portfolio[coin].category]}</span>` : '';
+                let precision = (coin === 'BTC' || coin === 'ETH' || rowCurrency === 'TWD' || portfolio[coin].category === 'us_stock') ? 2 : 4;
+                let priceDisplay = isAwaitingAPI ? `<span title="等待同步..." style="color:#8b949e;">${formatMoney(displayPrice, precision, rowCurrency)} ⏳</span>` : formatMoney(displayPrice, precision, rowCurrency);
+
+                summaryHTML += `<tr>
+                    <td class="coin-name">${coin} ${displayCatBadgeHTML}</td>
+                    <td>${formatAmount(portfolio[coin].amt)}</td>
+                    <td>${formatMoney(displayAvgCost, precision, rowCurrency)}</td>
+                    <td>${priceDisplay}</td>
+                    <td style="font-weight:bold; color:#fff;">${formatMoney(displayValue, 2, rowCurrency)}</td>
+                    <td>${unrealizedCell}</td>
+                    <td>${realizedBadge}</td>
+                </tr>`;
+            }
+
+            if (currentTab === 'crypto' || currentTab === 'all') {
+                let displayStable = globalCurrency === 'USD' ? stableCoinUSD : stableCoinUSD * currentExchangeRate;
+                
+                totalValue += displayStable;
+                totalCost += displayStable;
+                totalOriginalCost += displayStable;
+                
+                chartRawLabels.push('USDT/USDC');
+                chartData.push(displayStable);
+                costData.push(displayStable);
+                chartColors.push(predefinedColors['USDT/USDC']); 
+
+                if (currentTab === 'all') {
+                    catTotals['crypto'].val += displayStable;
+                    catTotals['crypto'].cost += displayStable;
+                }
+
+                let convertedStableStr = globalCurrency === 'USD' 
+                    ? `≈ NT$ ${formatMoney(stableCoinUSD * currentExchangeRate, 2, 'TWD').replace('NT$', '')}` 
+                    : `≈ $ ${formatMoney(stableCoinUSD, 2, 'USD').replace('$', '')}`;
+
+                summaryHTML += `
+                <tr style="background-color: rgba(38, 161, 123, 0.05);">
+                    <td class="coin-name" style="color: #26a17b;">💵 穩定幣 <span class="tag-badge" style="font-weight:normal; font-size:10px;">USD</span></td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td style="font-weight:bold; color:#fff;">
+                        <div style="display:flex; flex-direction:column; align-items:flex-end;">
+                            <input type="number" value="${stableCoinUSD}" onchange="updateStableCoinValue(this.value)" placeholder="輸入數量 (USD)" 
+                                   style="width: 150px; padding: 4px 8px; border-radius: 4px; border: 1px dashed #26a17b; background: transparent; color: #26a17b; font-weight: bold; text-align: right; outline: none; font-family: 'Courier New', Courier, monospace;">
+                            <span style="font-size:11px; color:#8b949e; font-weight:normal; margin-top:4px;">${convertedStableStr}</span>
+                        </div>
+                    </td>
+                    <td>-</td>
+                    <td>-</td>
+                </tr>`;
+            }
+
+            if (currentTab === 'all') {
+                let displayCash = globalCurrency === 'USD' ? (cashTWD / currentExchangeRate) : cashTWD;
+                
+                totalValue += displayCash;
+                totalCost += displayCash;
+                totalOriginalCost += displayCash;
+                
+                chartRawLabels.push('現金');
+                chartData.push(displayCash);
+                costData.push(displayCash);
+                chartColors.push(predefinedColors['現金']);
+
+                catTotals['cash'].val += displayCash;
+                catTotals['cash'].cost += displayCash;
+
+                let convertedStr = globalCurrency === 'USD' 
+                    ? `≈ NT$ ${formatMoney(cashTWD, 2, 'TWD').replace('NT$', '')}` 
+                    : `≈ $ ${formatMoney(cashTWD/currentExchangeRate, 2, 'USD').replace('$', '')}`;
+
+                summaryHTML += `
+                <tr style="background-color: rgba(63, 185, 80, 0.05);">
+                    <td class="coin-name" style="color: #3fb950;">💵 現金 <span class="tag-badge" style="font-weight:normal; font-size:10px;">TWD</span></td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td style="font-weight:bold; color:#fff;">
+                        <div style="display:flex; flex-direction:column; align-items:flex-end;">
+                            <input type="number" value="${cashTWD}" onchange="updateCashValue(this.value)" placeholder="輸入台幣現金" 
+                                   style="width: 150px; padding: 4px 8px; border-radius: 4px; border: 1px dashed #3fb950; background: transparent; color: #3fb950; font-weight: bold; text-align: right; outline: none; font-family: 'Courier New', Courier, monospace;">
+                            <span style="font-size:11px; color:#8b949e; font-weight:normal; margin-top:4px;">${convertedStr}</span>
+                        </div>
+                    </td>
+                    <td>-</td>
+                    <td>-</td>
+                </tr>`;
+            }
+
+            document.getElementById('summary-body').innerHTML = summaryHTML || `<tr><td colspan="7" style="text-align:center; color:#8b949e; padding: 30px;">尚無持倉資料。</td></tr>`;
+
+            let totalCurrency = globalCurrency;
+            document.getElementById('total-value').innerText = formatMoney(totalValue, 2, totalCurrency);
+            
+            let totalPercentChange = 0;
+            if (totalOriginalCost > 0) { totalPercentChange = (totalUnrealizedPnl / totalOriginalCost) * 100; }
+
+            const elUnrealized = document.getElementById('total-unrealized');
+            let totalPnlSign = totalUnrealizedPnl > 0 ? '+' : '';
+            elUnrealized.innerHTML = `${totalPnlSign}${formatMoney(totalUnrealizedPnl, 2, totalCurrency)} <span style="font-size:12px; margin-left:5px; opacity:0.8;">(${totalPnlSign}${totalPercentChange.toFixed(2)}%)</span>`;
+            elUnrealized.className = `badge ${totalUnrealizedPnl > 0 ? 'profit-badge' : (totalUnrealizedPnl < 0 ? 'loss-badge' : 'neutral-badge')}`;
+            
+            const elRealized = document.getElementById('total-realized');
+            elRealized.innerText = (totalRealizedPnl > 0 ? '+' : '') + formatMoney(totalRealizedPnl, 2, totalCurrency);
+            elRealized.className = `badge ${totalRealizedPnl > 0 ? 'profit-badge' : (totalRealizedPnl < 0 ? 'loss-badge' : 'neutral-badge')}`;
+            
+            const pieModeBtn = document.getElementById('pie-mode-btn');
+            if (pieModeBtn) {
+                if (currentTab === 'all') {
+                    pieModeBtn.style.display = 'flex';
+                    pieModeBtn.innerText = pieChartMode === 'detail' ? '🔄 圓餅圖：看四大分類' : '🔄 圓餅圖：看單一標的';
+                } else {
+                    pieModeBtn.style.display = 'none'; 
+                }
+            }
+
+            if (currentTab === 'all' && pieChartMode === 'category') {
+                chartRawLabels = []; chartData = []; costData = []; chartColors = [];
+                for (let key in catTotals) {
+                    if (catTotals[key].val > 0 || catTotals[key].cost > 0) {
+                        chartRawLabels.push(catTotals[key].label);
+                        chartData.push(catTotals[key].val);
+                        costData.push(catTotals[key].cost);
+                        chartColors.push(catTotals[key].color);
+                    }
+                }
+            }
+
+            if(chartData.length === 0) {
+                chartRawLabels = ['無資料']; chartData = [1]; chartColors = ['#21262d']; costData = [1]; totalValue = 1; totalCost = 1;
+            }
+
+            let labelsWithPercentageVal = chartRawLabels.map((coin, index) => {
+                let percentage = totalValue > 0 ? ((chartData[index] / totalValue) * 100).toFixed(1) : 0; 
+                return `${coin} (${percentage}%)`;
+            });
+            const ctxVal = document.getElementById('portfolioChart').getContext('2d');
+            if(chartInstance) chartInstance.destroy();
+            chartInstance = new Chart(ctxVal, {
+                type: 'doughnut', data: { labels: labelsWithPercentageVal, datasets: [{ data: chartData, backgroundColor: chartColors, borderColor: '#161b22', borderWidth: 3 }] },
+                options: { aspectRatio: 0.65, responsive: true, plugins: { title: { display: false }, legend: { position: 'bottom', labels: { color: '#c9d1d9', font: { size: 12 }, padding: 10, usePointStyle: true } }, tooltip: { callbacks: { label: function(c) { return c.label.includes('無資料') ? ' 尚無資產' : ` ${c.label} : ${formatMoney(c.parsed, 2, totalCurrency)}`; } } } }, animation: { duration: 0 }, cutout: '65%', layout: { padding: { top: 5, bottom: 15 } } }
+            });
+
+            let labelsWithPercentageCost = chartRawLabels.map((coin, index) => {
+                let percentage = totalCost > 0 ? ((costData[index] / totalCost) * 100).toFixed(1) : 0; 
+                return `${coin} (${percentage}%)`;
+            });
+            const ctxCost = document.getElementById('costChart').getContext('2d');
+            if(costChartInstance) costChartInstance.destroy();
+            costChartInstance = new Chart(ctxCost, {
+                type: 'doughnut', data: { labels: labelsWithPercentageCost, datasets: [{ data: costData, backgroundColor: chartColors, borderColor: '#161b22', borderWidth: 3 }] },
+                options: { aspectRatio: 0.65, responsive: true, plugins: { title: { display: false }, legend: { position: 'bottom', labels: { color: '#c9d1d9', font: { size: 12 }, padding: 10, usePointStyle: true } }, tooltip: { callbacks: { label: function(c) { return c.label.includes('無資料') ? ' 尚無資產' : ` 成本 : ${formatMoney(c.parsed, 2, totalCurrency)}`; } } } }, animation: { duration: 0 }, cutout: '65%', layout: { padding: { top: 5, bottom: 15 } } }
+            });
+
+            if (snapshots.length > 0) {
+                document.getElementById('trend-card').style.display = 'block';
+                updateTrendChart();
+            } else {
+                document.getElementById('trend-card').style.display = 'none';
+            }
+        }
+
+        function updateTrendChart() {
+            if (trendChartInstance) trendChartInstance.destroy();
+            const ctx = document.getElementById('trendChart').getContext('2d');
+
+            let sortedSnaps = [...snapshots].sort((a,b) => new Date(a.date) - new Date(b.date));
+            
+            let labels = sortedSnaps.map(s => {
+                let d = new Date(s.date);
+                return `${d.getMonth()+1}/${d.getDate()} ${d.getHours().toString().padStart(2, '0')}:00`;
+            });
+
+            // 【新增】從瀏覽器讀取「走勢圖隱藏狀態」的記憶
+            let hiddenState = JSON.parse(localStorage.getItem('wealthTrendLegend')) || {};
+
+            let datasets = [];
+
+            if (currentTab === 'all') {
+                datasets = [
+                    {
+                        label: `總現值 (${globalCurrency})`,
+                        data: sortedSnaps.map(s => globalCurrency === 'USD' ? s.total_usd : s.total_twd),
+                        borderColor: '#58a6ff',
+                        backgroundColor: 'rgba(88, 166, 255, 0.1)', 
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.2, 
+                        pointBackgroundColor: '#58a6ff',
+                        pointBorderColor: '#fff',
+                        pointRadius: 3,
+                        hidden: hiddenState[`總現值 (${globalCurrency})`] === true // 套用記憶狀態
+                    },
+                    {
+                        label: `加密貨幣 (${globalCurrency})`,
+                        data: sortedSnaps.map(s => globalCurrency === 'USD' ? s.crypto_usd : s.crypto_twd),
+                        borderColor: '#f7931a',
+                        backgroundColor: 'transparent', 
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.2, 
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        hidden: hiddenState[`加密貨幣 (${globalCurrency})`] === true
+                    },
+                    {
+                        label: `台股 (${globalCurrency})`,
+                        data: sortedSnaps.map(s => globalCurrency === 'USD' ? s.tw_stock_usd : s.tw_stock_twd),
+                        borderColor: '#d32f2f',
+                        backgroundColor: 'transparent', 
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.2, 
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        hidden: hiddenState[`台股 (${globalCurrency})`] === true
+                    },
+                    {
+                        label: `美股 (${globalCurrency})`,
+                        data: sortedSnaps.map(s => globalCurrency === 'USD' ? s.us_stock_usd : s.us_stock_twd),
+                        borderColor: '#1976d2',
+                        backgroundColor: 'transparent', 
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.2, 
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        hidden: hiddenState[`美股 (${globalCurrency})`] === true
+                    },
+                    {
+                        label: `現金 (${globalCurrency})`,
+                        data: sortedSnaps.map(s => {
+                            let total = globalCurrency === 'USD' ? s.total_usd : s.total_twd;
+                            let crypto = globalCurrency === 'USD' ? s.crypto_usd : s.crypto_twd;
+                            let tw = globalCurrency === 'USD' ? s.tw_stock_usd : s.tw_stock_twd;
+                            let us = globalCurrency === 'USD' ? s.us_stock_usd : s.us_stock_twd;
+                            // 【修改】將算出來的值四捨五入到小數點後兩位，消除浮點數誤差
+                            let cashVal = total - crypto - tw - us;
+                            return Math.round(cashVal * 100) / 100;
+                        }),
+                        borderColor: '#3fb950', 
+                        backgroundColor: 'transparent', 
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.2, 
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        hidden: hiddenState[`現金 (${globalCurrency})`] === true
+                    }
+                ];
+            } else {
+                let dataKey = '';
+                let chartLabel = '';
+                let chartColor = '#58a6ff'; 
+
+                if (currentTab === 'crypto') {
+                    dataKey = globalCurrency === 'USD' ? 'crypto_usd' : 'crypto_twd';
+                    chartLabel = `加密貨幣走勢 (${globalCurrency})`;
+                    chartColor = '#f7931a'; 
+                } else if (currentTab === 'tw_stock') {
+                    dataKey = globalCurrency === 'USD' ? 'tw_stock_usd' : 'tw_stock_twd';
+                    chartLabel = `台股走勢 (${globalCurrency})`;
+                    chartColor = '#d32f2f'; 
+                } else if (currentTab === 'us_stock') {
+                    dataKey = globalCurrency === 'USD' ? 'us_stock_usd' : 'us_stock_twd';
+                    chartLabel = `美股走勢 (${globalCurrency})`;
+                    chartColor = '#1976d2'; 
+                }
+
+                datasets = [{
+                    label: chartLabel,
+                    data: sortedSnaps.map(s => s[dataKey]),
+                    borderColor: chartColor,
+                    backgroundColor: chartColor + '1A', 
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.2, 
+                    pointBackgroundColor: chartColor,
+                    pointBorderColor: '#fff',
+                    pointRadius: 3
+                }];
+            }
+
+            trendChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: { 
+                        legend: { 
+                            display: true, 
+                            labels: { color: '#c9d1d9', usePointStyle: true, boxWidth: 8 },
+                            // 【新增】監聽圖例點擊事件，儲存使用者的開關設定
+                            onClick: function(e, legendItem, legend) {
+                                const index = legendItem.datasetIndex;
+                                const ci = legend.chart;
+                                
+                                // 切換線條顯示/隱藏
+                                if (ci.isDatasetVisible(index)) {
+                                    ci.hide(index);
+                                    legendItem.hidden = true;
+                                } else {
+                                    ci.show(index);
+                                    legendItem.hidden = false;
+                                }
+                                
+                                // 將最新狀態存入瀏覽器記憶體
+                                let savedState = JSON.parse(localStorage.getItem('wealthTrendLegend')) || {};
+                                savedState[legendItem.text] = legendItem.hidden;
+                                localStorage.setItem('wealthTrendLegend', JSON.stringify(savedState));
+                            }
+                        }, 
+                        tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${formatMoney(c.parsed.y, 2, globalCurrency)}` } } 
+                    },
+                    scales: {
+                        x: { grid: { color: '#30363d' }, ticks: { color: '#8b949e', maxTicksLimit: 7 } },
+                        y: { grid: { color: '#30363d' }, ticks: { color: '#8b949e' } }
+                    }
+                }
+            });
+        }
+
+        syncWithCloud();
+        setInterval(syncWithCloud, 60000); 
+
+    </script>
+</body>
+</html>
