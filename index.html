@@ -155,7 +155,7 @@
     </div>
 
     <script>
-        const API_URL = "https://script.google.com/macros/s/AKfycbyZHgi0_RNXa0KcXI4BvUpxA16V1M8508hkw5sy4NdDjs9nYu1RvTh6jhoTBLtZmvyWIg/exec"; 
+        const API_URL = "https://script.google.com/macros/s/AKfycbzKNnnSaZDXdvx6YBTFqxazfGTV3BaELt0QdIMqt0E0MPbE3JlG6U9EBX4oSeteoYM/exec"; 
 
         let trades = [];
         let priceCache = {}; 
@@ -170,8 +170,8 @@
         let sortOrder = 'desc'; 
 
         let currentExchangeRate = 32.5; 
-        let globalCurrency = localStorage.getItem('wealthCurrency') || 'USD';    
-        let pieChartMode = localStorage.getItem('wealthPieMode') || 'detail'; 
+        let globalCurrency = localStorage.getItem('wealth2Currency') || 'USD';    
+        let pieChartMode = localStorage.getItem('wealth2PieMode') || 'detail'; 
 
         const predefinedColors = { 'BTC': '#f7931a', 'ETH': '#627eea', 'ADA': '#0033ad', '2330': '#d32f2f', '0050': '#1976d2', '現金': '#3fb950', 'USDT/USDC': '#26a17b' };
         const apiIds = { 'BTC': 'bitcoin', 'ETH': 'ethereum', 'ADA': 'cardano' };
@@ -249,7 +249,7 @@
 
         function toggleGlobalCurrency() {
             globalCurrency = globalCurrency === 'USD' ? 'TWD' : 'USD';
-            localStorage.setItem('wealthCurrency', globalCurrency); 
+            localStorage.setItem('wealth2Currency', globalCurrency); 
             updateCurrencyUI(); 
             renderDashboardUI();
         }
@@ -263,13 +263,13 @@
 
         function togglePieChartMode() {
             pieChartMode = pieChartMode === 'detail' ? 'category' : 'detail';
-            localStorage.setItem('wealthPieMode', pieChartMode);
+            localStorage.setItem('wealth2PieMode', pieChartMode);
             renderDashboardUI();
         }
 
         function switchTab(tabId) {
             currentTab = tabId;
-            localStorage.setItem('wealthLastTab', tabId); 
+            localStorage.setItem('wealth2LastTab', tabId); 
 
             // 【新增】每次切換頁籤時，將歷史紀錄的下拉選單重置為「全部標的」
             const filterEl = document.getElementById('history-filter');
@@ -293,10 +293,10 @@
                 updateCoinDropdown(currentTab); 
                 cancelEdit(); 
             }
-            if (trades.length > 0) renderDashboardUI();
+            renderDashboardUI();
         }
 
-        let savedTab = localStorage.getItem('wealthLastTab') || 'crypto';
+        let savedTab = localStorage.getItem('wealth2LastTab') || 'crypto';
         switchTab(savedTab);
         updateCurrencyUI(); 
         document.getElementById('trade-date').value = formatInputDate();
@@ -328,7 +328,7 @@
 
                 if (data.status === "error") throw new Error(data.message);
 
-                let localTrades = JSON.parse(localStorage.getItem('wealthTrades')) || [];
+                let localTrades = JSON.parse(localStorage.getItem('wealth2Trades')) || [];
                 if (data.trades && data.trades.length === 0 && localTrades.length > 0) {
                     trades = localTrades;
                     await saveDataToCloud(true); 
@@ -338,7 +338,7 @@
                 stableCoinUSD = data.stableCoinUSD || 0; 
                 snapshots = data.snapshots || [];
 
-                localStorage.setItem('wealthTrades', JSON.stringify(trades));
+                localStorage.setItem('wealth2Trades', JSON.stringify(trades));
                 
                 if (data.livePrices) {
                     Object.keys(data.livePrices).forEach(ticker => { 
@@ -354,13 +354,13 @@
             } catch (error) {
                 console.error(error);
                 setStatus(`🔴 連線異常: ${error.message || '未知錯誤'}`, 'error');
-                trades = JSON.parse(localStorage.getItem('wealthTrades')) || [];
+                trades = JSON.parse(localStorage.getItem('wealth2Trades')) || [];
                 renderDashboardUI();
             }
         }
 
         async function saveDataToCloud(isSilent = false) {
-            localStorage.setItem('wealthTrades', JSON.stringify(trades));
+            localStorage.setItem('wealth2Trades', JSON.stringify(trades));
             if(!isSilent) setStatus('⏳ 正在儲存至 Google 雲端...', 'loading');
             try {
                 await fetch(API_URL, { method: 'POST', body: JSON.stringify(trades) });
@@ -451,22 +451,23 @@
 
             let filteredTrades = currentTab === 'all' ? [...trades] : trades.filter(t => t.category === currentTab);
             
-            // 【新增】動態產生歷史紀錄的過濾下拉選項
+            // 動態產生歷史紀錄的過濾下拉選項
             let historyFilterSelect = document.getElementById('history-filter');
-            let currentFilter = historyFilterSelect.value;
+            let currentFilter = historyFilterSelect ? historyFilterSelect.value : 'all';
             let uniqueCoins = [...new Set(filteredTrades.map(t => t.coin))].sort();
             
-            // 如果選取的標的不在當前頁籤中，就自動跳回「全部標的」
             if (currentFilter !== 'all' && !uniqueCoins.includes(currentFilter)) {
                 currentFilter = 'all';
             }
             
-            let filterOptionsHTML = `<option value="all">全部標的</option>`;
-            uniqueCoins.forEach(coin => {
-                let isSelected = coin === currentFilter ? 'selected' : '';
-                filterOptionsHTML += `<option value="${coin}" ${isSelected}>${coin}</option>`;
-            });
-            historyFilterSelect.innerHTML = filterOptionsHTML;
+            if (historyFilterSelect) {
+                let filterOptionsHTML = `<option value="all">全部標的</option>`;
+                uniqueCoins.forEach(coin => {
+                    let isSelected = coin === currentFilter ? 'selected' : '';
+                    filterOptionsHTML += `<option value="${coin}" ${isSelected}>${coin}</option>`;
+                });
+                historyFilterSelect.innerHTML = filterOptionsHTML;
+            }
 
             let portfolio = {};
             let tradesForDisplay = [];
@@ -503,7 +504,6 @@
 
             const historyBody = document.getElementById('history-body');
 
-            // 【新增】根據下拉選單過濾歷史顯示資料
             let finalHistoryTrades = tradesForDisplay;
             if (currentFilter !== 'all') {
                 finalHistoryTrades = finalHistoryTrades.filter(t => t.coin === currentFilter);
@@ -566,6 +566,7 @@
                 return a.localeCompare(b); 
             });
 
+            // ===== 1. 印出各別資產 =====
             for (let coin of sortedPortfolioKeys) {
                 if(portfolio[coin].amt <= 0 && portfolio[coin].realized === 0) continue; 
                 let itemCurrency = portfolio[coin].category === 'tw_stock' ? 'TWD' : 'USD';
@@ -633,6 +634,7 @@
                 </tr>`;
             }
 
+            // ===== 2. 印出穩定幣 (嚴格限制在 crypto 或 all 頁籤) =====
             if (currentTab === 'crypto' || currentTab === 'all') {
                 let displayStable = globalCurrency === 'USD' ? stableCoinUSD : stableCoinUSD * currentExchangeRate;
                 
@@ -672,6 +674,7 @@
                 </tr>`;
             }
 
+            // ===== 3. 印出台幣現金 (嚴格限制只有在 all 頁籤) =====
             if (currentTab === 'all') {
                 let displayCash = globalCurrency === 'USD' ? (cashTWD / currentExchangeRate) : cashTWD;
                 
@@ -794,7 +797,7 @@
             });
 
             // 【新增】從瀏覽器讀取「走勢圖隱藏狀態」的記憶
-            let hiddenState = JSON.parse(localStorage.getItem('wealthTrendLegend')) || {};
+            let hiddenState = JSON.parse(localStorage.getItem('wealth2TrendLegend')) || {};
 
             let datasets = [];
 
@@ -935,9 +938,9 @@
                                 }
                                 
                                 // 將最新狀態存入瀏覽器記憶體
-                                let savedState = JSON.parse(localStorage.getItem('wealthTrendLegend')) || {};
+                                let savedState = JSON.parse(localStorage.getItem('wealth2TrendLegend')) || {};
                                 savedState[legendItem.text] = legendItem.hidden;
-                                localStorage.setItem('wealthTrendLegend', JSON.stringify(savedState));
+                                localStorage.setItem('wealth2TrendLegend', JSON.stringify(savedState));
                             }
                         }, 
                         tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${formatMoney(c.parsed.y, 2, globalCurrency)}` } } 
