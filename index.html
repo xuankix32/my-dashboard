@@ -78,7 +78,7 @@
             <select id="trade-type"><option value="buy">買入 (Buy)</option><option value="sell">賣出 (Sell)</option></select>
             
             <select id="trade-coin" onchange="toggleDeleteButton()" style="width: 150px; padding: 10px; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: #c9d1d9; outline: none;"></select>
-            <button id="delete-ticker-btn" onclick="deleteCustomTicker()" type="button" class="sort-btn" style="padding: 10px; background: transparent; border-color: #f85149; color: #ff7b72; display: none;" title="從選單移除目前選取的標的">✖ 移除</button>
+            <button id="delete-ticker-btn" onclick="deleteCustomTicker()" type="button" style="background: transparent; border: none; color: #8b949e; cursor: pointer; padding: 10px 4px; font-size: 14px; display: none; transition: 0.2s; margin-left: -5px;" title="移除此自訂標的" onmouseover="this.style.color='#ff7b72'" onmouseout="this.style.color='#8b949e'">✖</button>
 
             <input type="number" id="trade-amount" placeholder="數量 (例: 100)" step="any" style="width: 130px;">
             <input type="number" id="trade-price" placeholder="單價" step="any" style="width: 130px;">
