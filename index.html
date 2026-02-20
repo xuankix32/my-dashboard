@@ -72,8 +72,10 @@
             <select id="trade-type"><option value="buy">買入 (Buy)</option><option value="sell">賣出 (Sell)</option></select>
             <div style="display: flex; align-items: center; gap: 6px;">
                 <select id="trade-coin" style="width: 140px;"></select>
+                <button onclick="deleteCustomTicker()" type="button" class="sort-btn" style="padding: 10px; background: transparent; border-color: #f85149; color: #ff7b72;" title="從選單移除目前選取的標的">❌</button>
+                
                 <input type="text" id="new-ticker-input" placeholder="自訂代號(例: AAPL)" style="width: 140px; padding: 10px; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: #c9d1d9; outline: none;">
-                <button onclick="addNewTicker()" type="button" class="sort-btn" style="padding: 10px; background: #21262d;">➕ 加入選單</button>
+                <button onclick="addNewTicker()" type="button" class="sort-btn" style="padding: 10px; background: #21262d;">➕ 加入</button>
             </div>
             <input type="number" id="trade-amount" placeholder="數量 (例: 100)" step="any" style="width: 140px;">
             <input type="number" id="trade-price" placeholder="單價 (NT$ / USD)" step="any" style="width: 150px;">
@@ -460,6 +462,47 @@
                 alert('這個標的已經在選單裡囉！');
                 inputEl.value = '';
                 document.getElementById('trade-coin').value = newTicker;
+            }
+        }
+
+        async function deleteCustomTicker() {
+            const coinSelect = document.getElementById('trade-coin');
+            const tickerToDelete = coinSelect.value;
+            
+            if (!tickerToDelete) return;
+
+            // 1. 檢查防呆：預設寫死的標的不允許刪除
+            const isDefault = categoryOptions[currentTab] && categoryOptions[currentTab].some(opt => opt.value === tickerToDelete);
+            if (isDefault) {
+                alert('這個是系統預設標的，無法刪除喔！');
+                return;
+            }
+
+            // 2. 跳出確認視窗
+            if(!confirm(`確定要從選單移除自訂標的「${tickerToDelete}」嗎？\n(注意：如果你已經買了這個標的，刪除後它將無法更新即時報價！)`)) {
+                return;
+            }
+
+            // 3. 從前端瀏覽器記憶體中刪除
+            let customTickers = JSON.parse(localStorage.getItem('wealthCustomTickers')) || { 'tw_stock': [], 'us_stock': [], 'crypto': [] };
+            if (customTickers[currentTab]) {
+                customTickers[currentTab] = customTickers[currentTab].filter(t => t !== tickerToDelete);
+                localStorage.setItem('wealthCustomTickers', JSON.stringify(customTickers));
+            }
+            
+            // 重新渲染選單，讓被刪除的選項消失
+            updateCoinDropdown(currentTab);
+
+            // 4. 背景呼叫 Google 雲端，自動砍掉 Prices 表格裡的那行資料
+            setStatus(`⏳ 正在從雲端移除 ${tickerToDelete} 的報價追蹤...`, 'loading');
+            try {
+                await fetch(API_URL, { 
+                    method: 'POST', 
+                    body: JSON.stringify({ type: 'removeTicker', ticker: tickerToDelete }) 
+                });
+                setStatus('🟢 標的已成功移除！', 'success');
+            } catch(e) {
+                setStatus('🔴 移除標的失敗，請檢查網路', 'error');
             }
         }
 
