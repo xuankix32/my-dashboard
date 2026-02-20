@@ -283,9 +283,16 @@
             currentTab = tabId;
             localStorage.setItem('wealthLastTab', tabId); 
 
-            // 【新增】每次切換頁籤時，將歷史紀錄的下拉選單重置為「全部標的」
+            // 每次切換頁籤時，將歷史紀錄的下拉選單重置為「全部標的」
             const filterEl = document.getElementById('history-filter');
             if (filterEl) filterEl.value = 'all';
+
+            // 【新增】切換頁籤時，還原該頁籤專屬的「走勢圖時間區間」記憶
+            const timeFilterEl = document.getElementById('trend-time-filter');
+            if (timeFilterEl) {
+                let savedFilters = JSON.parse(localStorage.getItem('wealthTrendFilters')) || {};
+                timeFilterEl.value = savedFilters[tabId] || 'all';
+            }
 
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             let targetBtn = document.querySelector(`button[onclick*="'${tabId}'"]`);
@@ -305,8 +312,9 @@
                 updateCoinDropdown(currentTab); 
                 cancelEdit(); 
             }
-            updateCurrencyUI(); // 【新增】切換頁籤時，同步更新右上角的幣別按鈕
-            renderDashboardUI();
+            
+            updateCurrencyUI(); 
+            renderDashboardUI(); 
         }
 
         let savedTab = localStorage.getItem('wealthLastTab') || 'crypto';
@@ -807,26 +815,28 @@
 
             let sortedSnaps = [...snapshots].sort((a,b) => new Date(a.date) - new Date(b.date));
 
-            // 【新增】取得下拉選單的時間區間設定，並過濾資料
             const timeFilterEl = document.getElementById('trend-time-filter');
             const filterValue = timeFilterEl ? timeFilterEl.value : 'all';
 
+            // 【新增】把現在選擇的時間區間，存入當前頁籤專屬的記憶空間
+            let savedFilters = JSON.parse(localStorage.getItem('wealthTrendFilters')) || {};
+            savedFilters[currentTab] = filterValue;
+            localStorage.setItem('wealthTrendFilters', JSON.stringify(savedFilters));
+
             if (filterValue !== 'all' && sortedSnaps.length > 0) {
-                // 以最新一筆快照的時間為基準往前推
                 const latestDate = new Date(sortedSnaps[sortedSnaps.length - 1].date);
                 let cutoffTime = 0;
 
                 if (filterValue === '1d') {
-                    cutoffTime = latestDate.getTime() - (24 * 60 * 60 * 1000); // 1天
+                    cutoffTime = latestDate.getTime() - (24 * 60 * 60 * 1000); 
                 } else if (filterValue === '1w') {
-                    cutoffTime = latestDate.getTime() - (7 * 24 * 60 * 60 * 1000); // 7天
+                    cutoffTime = latestDate.getTime() - (7 * 24 * 60 * 60 * 1000); 
                 } else if (filterValue === '1m') {
-                    cutoffTime = latestDate.getTime() - (30 * 24 * 60 * 60 * 1000); // 30天
+                    cutoffTime = latestDate.getTime() - (30 * 24 * 60 * 60 * 1000); 
                 } else if (filterValue === '1y') {
-                    cutoffTime = latestDate.getTime() - (365 * 24 * 60 * 60 * 1000); // 365天
+                    cutoffTime = latestDate.getTime() - (365 * 24 * 60 * 60 * 1000); 
                 }
 
-                // 只保留大於等於截止時間的資料
                 sortedSnaps = sortedSnaps.filter(s => new Date(s.date).getTime() >= cutoffTime);
             }
 
@@ -897,7 +907,7 @@
                             let tw = globalCurrency === 'USD' ? s.tw_stock_usd : s.tw_stock_twd;
                             let us = globalCurrency === 'USD' ? s.us_stock_usd : s.us_stock_twd;
                             let cashVal = total - crypto - tw - us;
-                            return Math.round(cashVal * 100) / 100; // 四捨五入消除浮點數誤差
+                            return Math.round(cashVal * 100) / 100;
                         }),
                         borderColor: '#3fb950', 
                         backgroundColor: 'transparent', 
@@ -938,7 +948,8 @@
                     tension: 0.2, 
                     pointBackgroundColor: chartColor,
                     pointBorderColor: '#fff',
-                    pointRadius: 3
+                    pointRadius: 3,
+                    hidden: hiddenState[chartLabel] === true // 【修復】加入了個別頁籤的圖例記憶
                 }];
             }
 
