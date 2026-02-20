@@ -77,8 +77,10 @@
             <input type="datetime-local" id="trade-date" title="修改交易時間" style="display: none;">
             <select id="trade-type"><option value="buy">買入 (Buy)</option><option value="sell">賣出 (Sell)</option></select>
             
-            <select id="trade-coin" onchange="toggleDeleteButton()" style="width: 150px; padding: 10px; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: #c9d1d9; outline: none;"></select>
-            <button id="delete-ticker-btn" onclick="deleteCustomTicker()" type="button" style="background: transparent; border: none; color: #8b949e; cursor: pointer; padding: 10px 4px; font-size: 14px; display: none; transition: 0.2s; margin-left: -5px;" title="移除此自訂標的" onmouseover="this.style.color='#ff7b72'" onmouseout="this.style.color='#8b949e'">✖</button>
+            <div style="display: flex; align-items: center; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding-right: 5px; transition: 0.3s;" onmouseover="this.style.borderColor='#58a6ff'" onmouseout="this.style.borderColor='#30363d'">
+                <select id="trade-coin" onchange="toggleDeleteButton()" style="width: 140px; padding: 10px; border: none; background: transparent; color: #c9d1d9; outline: none; cursor: pointer;"></select>
+                <button id="delete-ticker-btn" onclick="deleteCustomTicker()" type="button" style="background: transparent; border: none; color: #8b949e; cursor: pointer; padding: 5px 8px; font-size: 14px; display: none; transition: 0.2s;" title="移除此自訂標的" onmouseover="this.style.color='#ff7b72'" onmouseout="this.style.color='#8b949e'">✖</button>
+            </div>
 
             <input type="number" id="trade-amount" placeholder="數量 (例: 100)" step="any" style="width: 130px;">
             <input type="number" id="trade-price" placeholder="單價" step="any" style="width: 130px;">
@@ -517,6 +519,8 @@
                 updateCoinDropdown(currentTab);
                 document.getElementById('trade-coin').value = newTicker;
                 inputEl.value = '';
+                // 【關鍵修復】選中新代號後，立刻主動呼叫一次檢查，讓 ✖ 馬上顯示！
+                toggleDeleteButton();
 
                 // 3. 在背景呼叫 Google 雲端，自動寫入 Prices 表格與公式
                 setStatus('⏳ 正在將新標的寫入 Google 雲端...', 'loading');
