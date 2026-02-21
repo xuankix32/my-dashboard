@@ -199,7 +199,8 @@
 
         let currentExchangeRate = 32.5;
         // 讀取本地記憶，預設為 false (不隱藏)
-        let hideZeroHoldings = localStorage.getItem('wealthHideZero') === 'true';
+        // 每個頁籤獨立記憶「是否隱藏 0 庫存」
+        let tabHideZero = JSON.parse(localStorage.getItem('wealthHideZeroTabs')) || { 'tw_stock': false, 'us_stock': false, 'crypto': false, 'all': false };
         // 【修改】將單一幣別改為「每個頁籤獨立記憶」的設定物件
         let tabCurrencies = JSON.parse(localStorage.getItem('wealthCurrencies')) || { 'tw_stock': 'TWD', 'us_stock': 'USD', 'crypto': 'USD', 'all': 'USD' };    
         let pieChartMode = localStorage.getItem('wealthPieMode') || 'detail'; 
@@ -373,9 +374,10 @@
         }
 
         function toggleZeroHoldings() {
-            hideZeroHoldings = !hideZeroHoldings;
-            localStorage.setItem('wealthHideZero', hideZeroHoldings); // 寫入記憶
-            renderDashboardUI(); // 重新渲染畫面
+            // 只切換「當前頁籤」的狀態並寫入記憶
+            tabHideZero[currentTab] = !tabHideZero[currentTab];
+            localStorage.setItem('wealthHideZeroTabs', JSON.stringify(tabHideZero));
+            renderDashboardUI();
         }
 
         function updateCurrencyUI() {
@@ -676,12 +678,13 @@
             trades.sort((a, b) => new Date(a.date) - new Date(b.date));
             document.getElementById('current-ex-rate').innerText = currentExchangeRate.toFixed(2);
 
-            // 【新增】動態更新「隱藏按鈕」的外觀狀態
+             // 【新增】動態更新「隱藏按鈕」的外觀狀態 (根據當前頁籤)
             const hideBtn = document.getElementById('hide-zero-btn');
-            if (hideBtn && typeof hideZeroHoldings !== 'undefined') {
-                hideBtn.innerText = hideZeroHoldings ? '🙉 顯示未持有標的' : '🙈 隱藏未持有標的';
-                hideBtn.style.color = hideZeroHoldings ? '#58a6ff' : '#c9d1d9';
-                hideBtn.style.borderColor = hideZeroHoldings ? '#58a6ff' : '#30363d';
+            if (hideBtn) {
+                let isHidden = tabHideZero[currentTab];
+                hideBtn.innerText = isHidden ? '🙉 顯示未持有標的' : '🙈 隱藏未持有標的';
+                hideBtn.style.color = isHidden ? '#58a6ff' : '#c9d1d9';
+                hideBtn.style.borderColor = isHidden ? '#58a6ff' : '#30363d';
             }
 
             let filteredTrades = currentTab === 'all' ? [...trades] : trades.filter(t => t.category === currentTab);
@@ -858,8 +861,8 @@
                 let precision = (coin === 'BTC' || coin === 'ETH' || rowCurrency === 'TWD' || portfolio[coin].category === 'us_stock') ? 2 : 4;
                 let priceDisplay = isAwaitingAPI ? `<span title="等待同步..." style="color:#8b949e;">${formatMoney(displayPrice, precision, rowCurrency)} ⏳</span>` : formatMoney(displayPrice, precision, rowCurrency);
 
-                // 【修改重點】判斷開關狀態：如果啟動隱藏，且該資產股數/數量為 0，就不印出這一行 HTML
-                if (!(typeof hideZeroHoldings !== 'undefined' && hideZeroHoldings && portfolio[coin].amt <= 0)) {
+                // 【修改重點】判斷「當前頁籤」的開關狀態：如果啟動隱藏，且該資產股數/數量為 0，就不印出這行
+                if (!(tabHideZero[currentTab] && portfolio[coin].amt <= 0)) {
                     summaryHTML += `<tr>
                         <td class="coin-name">${coin} ${displayCatBadgeHTML}</td>
                         <td>${formatAmount(portfolio[coin].amt)}</td>
