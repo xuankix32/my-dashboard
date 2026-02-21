@@ -96,17 +96,18 @@
     </div>
 
     <div class="grid">
-        <div class="card" style="overflow-x: auto;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div class="card"> <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                 <h3 style="margin-top:0;" id="summary-title">📊 資產與獲利明細</h3>
                 <span id="api-status" style="font-size: 12px; font-weight:bold; color: #8b949e; background: #21262d; padding: 6px 10px; border-radius: 4px;">⏳ 正在連線至雲端資料庫...</span>
             </div>
-            <table>
-                <thead id="summary-header-row"></thead>
-                <tbody id="summary-body"></tbody>
-            </table>
             
-            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 20px; padding-top: 15px; border-top: 1px solid #30363d;">
+            <div class="table-scroll-container" style="max-height: 450px; overflow-x: auto; border: none; border-radius: 0;">
+                <table style="min-width: 650px; margin-top: 0;"> <thead id="summary-header-row"></thead>
+                    <tbody id="summary-body"></tbody>
+                </table>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; padding-top: 15px; margin-top: 5px; border-top: 1px solid #30363d; flex-wrap: wrap; gap: 15px;">
                 <div id="exchange-rate-container" style="text-align: left;">
                     <div style="font-size: 12px; color: #8b949e; margin-bottom: 8px;">
                         💱 雲端即時匯率：1 USD = <span id="current-ex-rate" style="color: #c9d1d9; font-weight: bold;">讀取中...</span> TWD
