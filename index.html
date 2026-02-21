@@ -61,6 +61,15 @@
 </head>
 <body>
 
+    <div id="login-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0d1117; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+        <h2 style="color: #c9d1d9; margin-bottom: 20px;">🔒 戰情室已上鎖</h2>
+        <div style="display: flex; gap: 10px;">
+            <input type="password" id="login-pwd" placeholder="請輸入通關密碼" style="padding: 10px; border-radius: 6px; border: 1px solid #30363d; background: #161b22; color: #c9d1d9; outline: none; width: 220px; font-size: 16px;">
+            <button onclick="verifyLogin()" class="action-btn" style="background: #3fb950; padding: 10px 20px; font-size: 16px;">解鎖</button>
+        </div>
+        <div id="login-error" style="color: #ff7b72; margin-top: 15px; display: none;">密碼錯誤或未授權，請重試！</div>
+    </div>
+
     <h1 style="text-align: center; margin-bottom: 20px; font-weight: 800; letter-spacing: 1px;">🚀 戰情室 Dashboard</h1>
     
     <div class="tabs" id="nav-tabs">
@@ -111,7 +120,10 @@
                     <div style="font-size: 12px; color: #8b949e; margin-bottom: 8px;">
                         💱 雲端即時匯率：1 USD = <span id="current-ex-rate" style="color: #c9d1d9; font-weight: bold;">讀取中...</span> TWD
                     </div>
-                    <button class="sort-btn" id="currency-toggle-btn" onclick="toggleGlobalCurrency()">🔄 切換為 TWD 計價</button>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="sort-btn" id="currency-toggle-btn" onclick="toggleGlobalCurrency()">🔄 切換為 TWD 計價</button>
+                        <button class="sort-btn" id="hide-zero-btn" onclick="toggleZeroHoldings()">🙈 隱藏未持有標的</button>
+                    </div>
                 </div>
 
                 <div class="summary-stats">
@@ -193,8 +205,11 @@
         let costChartInstance = null;
         let trendChartInstance = null; 
         let sortOrder = 'desc'; 
-
+        // 【新增】從記憶體讀取密碼
+        let appPassword = localStorage.getItem('wealthPassword') || '';
         let currentExchangeRate = 32.5; 
+        // 讀取本地記憶，預設為 false (不隱藏)
+        let hideZeroHoldings = localStorage.getItem('wealthHideZero') === 'true';
         // 【修改】將單一幣別改為「每個頁籤獨立記憶」的設定物件
         let tabCurrencies = JSON.parse(localStorage.getItem('wealthCurrencies')) || { 'tw_stock': 'TWD', 'us_stock': 'USD', 'crypto': 'USD', 'all': 'USD' };    
         let pieChartMode = localStorage.getItem('wealthPieMode') || 'detail'; 
@@ -225,6 +240,20 @@
                 }).replace(/-/g, '/');
             } catch(e) { return dateStr; }
         };
+
+        // 【新增】解鎖驗證功能
+        function verifyLogin() {
+            const pwdInput = document.getElementById('login-pwd').value;
+            if (!pwdInput) return;
+            
+            appPassword = pwdInput;
+            document.getElementById('login-error').style.display = 'none';
+            document.getElementById('login-pwd').disabled = true;
+            
+            // 將密碼存起來，並嘗試連線抓資料
+            localStorage.setItem('wealthPassword', appPassword);
+            syncWithCloud();
+        }
 
         function formatInputDate(dateStr) {
             try { const d = dateStr ? new Date(dateStr) : new Date(); const tzoffset = d.getTimezoneOffset() * 60000; return new Date(d - tzoffset).toISOString().slice(0, 16); } 
@@ -365,6 +394,12 @@
             localStorage.setItem('wealthCurrencies', JSON.stringify(tabCurrencies)); 
             updateCurrencyUI(); 
             renderDashboardUI();
+        }
+
+        function toggleZeroHoldings() {
+            hideZeroHoldings = !hideZeroHoldings;
+            localStorage.setItem('wealthHideZero', hideZeroHoldings); // 寫入記憶
+            renderDashboardUI(); // 重新渲染畫面
         }
 
         function updateCurrencyUI() {
@@ -661,9 +696,17 @@
         }
 
         function renderDashboardUI() {
-            let globalCurrency = tabCurrencies[currentTab]; // 【新增】取得當前頁籤專屬的計價幣別
+            let globalCurrency = tabCurrencies[currentTab]; // 取得當前頁籤專屬的計價幣別
             trades.sort((a, b) => new Date(a.date) - new Date(b.date));
             document.getElementById('current-ex-rate').innerText = currentExchangeRate.toFixed(2);
+
+            // 【新增】動態更新「隱藏按鈕」的外觀狀態
+            const hideBtn = document.getElementById('hide-zero-btn');
+            if (hideBtn && typeof hideZeroHoldings !== 'undefined') {
+                hideBtn.innerText = hideZeroHoldings ? '🙉 顯示未持有標的' : '🙈 隱藏未持有標的';
+                hideBtn.style.color = hideZeroHoldings ? '#58a6ff' : '#c9d1d9';
+                hideBtn.style.borderColor = hideZeroHoldings ? '#58a6ff' : '#30363d';
+            }
 
             let filteredTrades = currentTab === 'all' ? [...trades] : trades.filter(t => t.category === currentTab);
             
@@ -839,15 +882,21 @@
                 let precision = (coin === 'BTC' || coin === 'ETH' || rowCurrency === 'TWD' || portfolio[coin].category === 'us_stock') ? 2 : 4;
                 let priceDisplay = isAwaitingAPI ? `<span title="等待同步..." style="color:#8b949e;">${formatMoney(displayPrice, precision, rowCurrency)} ⏳</span>` : formatMoney(displayPrice, precision, rowCurrency);
 
-                summaryHTML += `<tr>
-                    <td class="coin-name">${coin} ${displayCatBadgeHTML}</td>
-                    <td>${formatAmount(portfolio[coin].amt)}</td>
-                    <td>${formatMoney(displayAvgCost, precision, rowCurrency)}</td>
-                    <td>${priceDisplay}</td>
-                    <td style="font-weight:bold; color:#fff;">${formatMoney(displayValue, 2, rowCurrency)}</td>
-                    <td>${unrealizedCell}</td>
-                    <td>${realizedBadge}</td>
-                </tr>`;
+                // 【修改重點】判斷開關狀態：如果啟動隱藏，且該資產股數/數量為 0，就不印出這一行 HTML
+                if (!(typeof hideZeroHoldings !== 'undefined' && hideZeroHoldings && portfolio[coin].amt <= 0)) {
+                    // 如果開關開啟，且持倉(股數)為 0，就不產生這行的 HTML
+                    if (!(hideZeroHoldings && portfolio[coin].amt <= 0)) {
+                        summaryHTML += `<tr>
+                            <td class="coin-name">${coin} ${displayCatBadgeHTML}</td>
+                            <td>${formatAmount(portfolio[coin].amt)}</td>
+                            <td>${formatMoney(displayAvgCost, precision, rowCurrency)}</td>
+                            <td>${priceDisplay}</td>
+                            <td style="font-weight:bold; color:#fff;">${formatMoney(displayValue, 2, rowCurrency)}</td>
+                            <td>${unrealizedCell}</td>
+                            <td>${realizedBadge}</td>
+                        </tr>`;
+                    }
+                }
             }
 
             // ===== 2. 印出穩定幣 (嚴格限制在 crypto 或 all 頁籤) =====
