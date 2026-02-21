@@ -61,15 +61,6 @@
 </head>
 <body>
 
-    <div id="login-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0d1117; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-        <h2 style="color: #c9d1d9; margin-bottom: 20px;">🔒 戰情室已上鎖</h2>
-        <div style="display: flex; gap: 10px;">
-            <input type="password" id="login-pwd" placeholder="請輸入通關密碼" style="padding: 10px; border-radius: 6px; border: 1px solid #30363d; background: #161b22; color: #c9d1d9; outline: none; width: 220px; font-size: 16px;">
-            <button onclick="verifyLogin()" class="action-btn" style="background: #3fb950; padding: 10px 20px; font-size: 16px;">解鎖</button>
-        </div>
-        <div id="login-error" style="color: #ff7b72; margin-top: 15px; display: none;">密碼錯誤或未授權，請重試！</div>
-    </div>
-
     <h1 style="text-align: center; margin-bottom: 20px; font-weight: 800; letter-spacing: 1px;">🚀 戰情室 Dashboard</h1>
     
     <div class="tabs" id="nav-tabs">
@@ -205,9 +196,8 @@
         let costChartInstance = null;
         let trendChartInstance = null; 
         let sortOrder = 'desc'; 
-        // 【新增】從記憶體讀取密碼
-        let appPassword = localStorage.getItem('wealthPassword') || '';
-        let currentExchangeRate = 32.5; 
+
+        let currentExchangeRate = 32.5;
         // 讀取本地記憶，預設為 false (不隱藏)
         let hideZeroHoldings = localStorage.getItem('wealthHideZero') === 'true';
         // 【修改】將單一幣別改為「每個頁籤獨立記憶」的設定物件
@@ -240,20 +230,6 @@
                 }).replace(/-/g, '/');
             } catch(e) { return dateStr; }
         };
-
-        // 【新增】解鎖驗證功能
-        function verifyLogin() {
-            const pwdInput = document.getElementById('login-pwd').value;
-            if (!pwdInput) return;
-            
-            appPassword = pwdInput;
-            document.getElementById('login-error').style.display = 'none';
-            document.getElementById('login-pwd').disabled = true;
-            
-            // 將密碼存起來，並嘗試連線抓資料
-            localStorage.setItem('wealthPassword', appPassword);
-            syncWithCloud();
-        }
 
         function formatInputDate(dateStr) {
             try { const d = dateStr ? new Date(dateStr) : new Date(); const tzoffset = d.getTimezoneOffset() * 60000; return new Date(d - tzoffset).toISOString().slice(0, 16); } 
@@ -884,18 +860,15 @@
 
                 // 【修改重點】判斷開關狀態：如果啟動隱藏，且該資產股數/數量為 0，就不印出這一行 HTML
                 if (!(typeof hideZeroHoldings !== 'undefined' && hideZeroHoldings && portfolio[coin].amt <= 0)) {
-                    // 如果開關開啟，且持倉(股數)為 0，就不產生這行的 HTML
-                    if (!(hideZeroHoldings && portfolio[coin].amt <= 0)) {
-                        summaryHTML += `<tr>
-                            <td class="coin-name">${coin} ${displayCatBadgeHTML}</td>
-                            <td>${formatAmount(portfolio[coin].amt)}</td>
-                            <td>${formatMoney(displayAvgCost, precision, rowCurrency)}</td>
-                            <td>${priceDisplay}</td>
-                            <td style="font-weight:bold; color:#fff;">${formatMoney(displayValue, 2, rowCurrency)}</td>
-                            <td>${unrealizedCell}</td>
-                            <td>${realizedBadge}</td>
-                        </tr>`;
-                    }
+                    summaryHTML += `<tr>
+                        <td class="coin-name">${coin} ${displayCatBadgeHTML}</td>
+                        <td>${formatAmount(portfolio[coin].amt)}</td>
+                        <td>${formatMoney(displayAvgCost, precision, rowCurrency)}</td>
+                        <td>${priceDisplay}</td>
+                        <td style="font-weight:bold; color:#fff;">${formatMoney(displayValue, 2, rowCurrency)}</td>
+                        <td>${unrealizedCell}</td>
+                        <td>${realizedBadge}</td>
+                    </tr>`;
                 }
             }
 
