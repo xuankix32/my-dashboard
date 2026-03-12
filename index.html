@@ -758,7 +758,8 @@
                 } else if (globalCurrency === 'TWD' && itemCurrency === 'USD') {
                     logPrice *= currentExchangeRate; if (logRealized !== null) logRealized *= currentExchangeRate;
                 }
-                let precision = (t.coin === 'BTC' || t.coin === 'ETH' || logCurrency === 'TWD' || t.category === 'us_stock') ? 2 : 4; 
+                // 【修改】特別給 NIGHT 小數點後 5 位的特權
+                let precision = (t.coin === 'NIGHT') ? 5 : ((t.coin === 'BTC' || t.coin === 'ETH' || logCurrency === 'TWD' || t.category === 'us_stock') ? 2 : 4);
                 let pnlBadge = '<span class="badge neutral-badge">-</span>';
                 if (t.type === 'sell' && logRealized !== null) {
                     let pnlClass = logRealized > 0 ? 'profit-badge' : (logRealized < 0 ? 'loss-badge' : 'neutral-badge');
@@ -858,7 +859,8 @@
 
                 let realizedBadge = `<span class="badge ${displayRealized > 0 ? 'profit-badge' : (displayRealized < 0 ? 'loss-badge' : 'neutral-badge')}">${displayRealized > 0 ? '+' : ''}${formatMoney(displayRealized, 2, rowCurrency)}</span>`;
                 let displayCatBadgeHTML = currentTab === 'all' ? `<span class="tag-badge" style="font-weight:normal; font-size:10px;">${categoryNames[portfolio[coin].category]}</span>` : '';
-                let precision = (coin === 'BTC' || coin === 'ETH' || rowCurrency === 'TWD' || portfolio[coin].category === 'us_stock') ? 2 : 4;
+                // 【修改】特別給 NIGHT 小數點後 5 位的特權
+                let precision = (coin === 'NIGHT') ? 5 : ((coin === 'BTC' || coin === 'ETH' || rowCurrency === 'TWD' || portfolio[coin].category === 'us_stock') ? 2 : 4);
                 let priceDisplay = isAwaitingAPI ? `<span title="等待同步..." style="color:#8b949e;">${formatMoney(displayPrice, precision, rowCurrency)} ⏳</span>` : formatMoney(displayPrice, precision, rowCurrency);
 
                 // 【修改重點】判斷「當前頁籤」的開關狀態：如果啟動隱藏，且該資產股數/數量為 0，就不印出這行
