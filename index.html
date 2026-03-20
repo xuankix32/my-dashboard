@@ -51,7 +51,6 @@
         .sort-btn { background: #21262d; border: 1px solid #30363d; color: #c9d1d9; padding: 6px 12px; font-size: 13px; border-radius: 6px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 5px;}
         .sort-btn:hover { background: #30363d; color: #fff; }
 
-        /* 【新增】智慧搜尋下拉選單樣式 */
         .autocomplete-item { padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #21262d; font-size: 13px; color: #c9d1d9; transition: background 0.2s; }
         .autocomplete-item:hover { background-color: #1f6feb; color: white; }
         .autocomplete-item:last-child { border-bottom: none; }
@@ -189,6 +188,7 @@
         let priceCache = {}; 
         let cashTWD = 0; 
         let stableCoinUSD = 0; 
+        let cashUSD = 0; // 【新增】美金現金變數
         let snapshots = []; 
         let currentTab = 'crypto'; 
         let editingId = null; 
@@ -198,14 +198,12 @@
         let sortOrder = 'desc'; 
 
         let currentExchangeRate = 32.5;
-        // 讀取本地記憶，預設為 false (不隱藏)
-        // 每個頁籤獨立記憶「是否隱藏 0 庫存」
         let tabHideZero = JSON.parse(localStorage.getItem('wealthHideZeroTabs')) || { 'tw_stock': false, 'us_stock': false, 'crypto': false, 'all': false };
-        // 【修改】將單一幣別改為「每個頁籤獨立記憶」的設定物件
         let tabCurrencies = JSON.parse(localStorage.getItem('wealthCurrencies')) || { 'tw_stock': 'TWD', 'us_stock': 'USD', 'crypto': 'USD', 'all': 'USD' };    
         let pieChartMode = localStorage.getItem('wealthPieMode') || 'detail'; 
 
-        const predefinedColors = { 'BTC': '#f7931a', 'ETH': '#627eea', 'ADA': '#0033ad', '2330': '#d32f2f', '0050': '#1976d2', '現金': '#3fb950', 'USDT/USDC': '#26a17b' };
+        // 【新增】美金的專屬顏色
+        const predefinedColors = { 'BTC': '#f7931a', 'ETH': '#627eea', 'ADA': '#0033ad', '2330': '#d32f2f', '0050': '#1976d2', '現金': '#3fb950', 'USDT/USDC': '#26a17b', '美金': '#2ea043' };
         const apiIds = { 'BTC': 'bitcoin', 'ETH': 'ethereum', 'ADA': 'cardano' };
         const categoryNames = { 'tw_stock': '台股', 'us_stock': '美股', 'crypto': '加密貨幣', 'all': '綜合分析' };
 
@@ -271,7 +269,6 @@
             if (customTickers[category]) {
                 customTickers[category].forEach(ticker => {
                     if (!allOptions.find(opt => opt.value === ticker)) {
-                        // 【修改】移除了 (自訂) 字眼，保持乾淨
                         allOptions.push({ value: ticker, text: ticker });
                     }
                 });
@@ -290,30 +287,24 @@
             const newTickerInput = document.getElementById('new-ticker-input');
             if(newTickerInput) newTickerInput.value = '';
 
-            toggleDeleteButton(); // 更新選單後檢查刪除按鈕
+            toggleDeleteButton(); 
         }
 
-        // 【新增】判斷是否顯示「✖」刪除按鈕
         function toggleDeleteButton() {
             const coinSelect = document.getElementById('trade-coin');
             const delBtn = document.getElementById('delete-ticker-btn');
             if(!coinSelect || !delBtn) return;
-            
             const currentVal = coinSelect.value;
             const isDefault = categoryOptions[currentTab] && categoryOptions[currentTab].some(opt => opt.value === currentVal);
-            
-            // 只有自己新增的標的才會出現刪除鍵
             delBtn.style.display = isDefault ? 'none' : 'inline-block';
         }
 
-        // 【新增】內建熱門標的字典 (供搜尋提示使用)
         const dictionary = {
             'tw_stock': ['2330 台積電', '2317 鴻海', '2454 聯發科', '0050 元大台灣50', '0056 元大高股息', '00878 國泰永續高股息', '00929 復華台灣科技優息', '2881 富邦金', '2891 中信金', '2603 長榮', '2308 台達電', '3231 緯創', '2382 廣達'],
             'us_stock': ['AAPL Apple', 'MSFT Microsoft', 'NVDA NVIDIA', 'GOOGL Alphabet', 'AMZN Amazon', 'META Meta', 'TSLA Tesla', 'BRK.B Berkshire', 'SPY S&P 500 ETF', 'QQQ Nasdaq ETF', 'VOO Vanguard S&P 500', 'AMD AMD', 'PLTR Palantir', 'TSM 台積電ADR', 'AVGO Broadcom'],
             'crypto': ['BTC Bitcoin', 'ETH Ethereum', 'SOL Solana', 'BNB Binance Coin', 'XRP Ripple', 'ADA Cardano', 'AVAX Avalanche', 'DOGE Dogecoin', 'DOT Polkadot', 'LINK Chainlink', 'NEAR Near Protocol']
         };
 
-        // 【新增】智慧過濾與顯示選單
         function filterTickers() {
             const input = document.getElementById('new-ticker-input');
             const list = document.getElementById('autocomplete-list');
@@ -326,32 +317,22 @@
             }
 
             let matches = dictionary[currentTab] ? dictionary[currentTab].filter(t => t.toUpperCase().includes(filter)) : [];
-            
-            if (matches.length === 0) {
-                list.style.display = 'none';
-                return;
-            }
+            if (matches.length === 0) { list.style.display = 'none'; return; }
 
             matches.forEach(match => {
                 let div = document.createElement('div');
                 div.className = 'autocomplete-item';
-                
-                // 將使用者輸入的關鍵字標示藍色粗體
                 let regex = new RegExp(filter, "gi");
                 div.innerHTML = match.replace(regex, "<span class='autocomplete-highlight'>$&</span>");
-                
                 div.onclick = function() {
-                    // 點擊後，只擷取代號部分 (空格前面的字)
                     input.value = match.split(' ')[0];
                     list.style.display = 'none';
                 };
                 list.appendChild(div);
             });
-            
             list.style.display = 'block';
         }
 
-        // 【新增】點擊網頁其他地方時，自動收起下拉選單
         document.addEventListener('click', function(e) {
             if (e.target.id !== 'new-ticker-input') {
                 const list = document.getElementById('autocomplete-list');
@@ -366,7 +347,6 @@
         }
 
         function toggleGlobalCurrency() {
-            // 【修改】只切換「當前頁籤」的幣別，不再影響其他頁籤
             tabCurrencies[currentTab] = tabCurrencies[currentTab] === 'USD' ? 'TWD' : 'USD';
             localStorage.setItem('wealthCurrencies', JSON.stringify(tabCurrencies)); 
             updateCurrencyUI(); 
@@ -374,14 +354,12 @@
         }
 
         function toggleZeroHoldings() {
-            // 只切換「當前頁籤」的狀態並寫入記憶
             tabHideZero[currentTab] = !tabHideZero[currentTab];
             localStorage.setItem('wealthHideZeroTabs', JSON.stringify(tabHideZero));
             renderDashboardUI();
         }
 
         function updateCurrencyUI() {
-            // 【修改】根據「當前頁籤」的設定來更新按鈕文字
             let currentCur = tabCurrencies[currentTab];
             const btn = document.getElementById('currency-toggle-btn');
             if(btn) btn.innerText = currentCur === 'USD' ? '🔄 切換為 TWD 計價' : '🔄 切換為 USD 計價';
@@ -399,11 +377,9 @@
             currentTab = tabId;
             localStorage.setItem('wealthLastTab', tabId); 
 
-            // 每次切換頁籤時，將歷史紀錄的下拉選單重置為「全部標的」
             const filterEl = document.getElementById('history-filter');
             if (filterEl) filterEl.value = 'all';
 
-            // 【新增】切換頁籤時，還原該頁籤專屬的「走勢圖時間區間」記憶
             const timeFilterEl = document.getElementById('trend-time-filter');
             if (timeFilterEl) {
                 let savedFilters = JSON.parse(localStorage.getItem('wealthTrendFilters')) || {};
@@ -450,6 +426,13 @@
             try { await fetch(API_URL, { method: 'POST', body: JSON.stringify({ type: 'updateStableCoin', value: stableCoinUSD }) }); } catch(e) {}
         }
 
+        // 【新增】更新美金現金函數
+        async function updateCashUSDValue(val) {
+            cashUSD = parseFloat(val) || 0;
+            renderDashboardUI();
+            try { await fetch(API_URL, { method: 'POST', body: JSON.stringify({ type: 'updateCashUSD', value: cashUSD }) }); } catch(e) {}
+        }
+
         async function syncWithCloud() {
             try {
                 setStatus('⏳ 正在與 Google 雲端同步...', 'loading');
@@ -457,12 +440,7 @@
                 
                 let text = await response.text();
                 let data;
-                try {
-                    data = JSON.parse(text);
-                } catch(e) {
-                    throw new Error("伺服器未回傳 JSON");
-                }
-
+                try { data = JSON.parse(text); } catch(e) { throw new Error("伺服器未回傳 JSON"); }
                 if (data.status === "error") throw new Error(data.message);
 
                 let localTrades = JSON.parse(localStorage.getItem('wealthTrades')) || [];
@@ -473,6 +451,8 @@
                 
                 cashTWD = data.cashTWD || 0; 
                 stableCoinUSD = data.stableCoinUSD || 0; 
+                cashUSD = data.cashUSD || 0; // 【新增】讀取美金現金
+
                 snapshots = data.snapshots || [];
 
                 localStorage.setItem('wealthTrades', JSON.stringify(trades));
@@ -506,48 +486,29 @@
         }
 
         async function addNewTicker() {
-            if (currentTab === 'all') {
-                alert('請先切換到「台股」、「美股」或「加密貨幣」頁籤再新增標的！');
-                return;
-            }
-
+            if (currentTab === 'all') { alert('請先切換到「台股」、「美股」或「加密貨幣」頁籤再新增標的！'); return; }
             const inputEl = document.getElementById('new-ticker-input');
             let newTicker = inputEl.value.trim().toUpperCase();
             if (!newTicker) return;
 
-            // 台股自動補零 (例如輸入 2330 還是 2330，但輸入 01 會變 0001)
-            if (currentTab === 'tw_stock' && /^\d+$/.test(newTicker) && newTicker.length < 4) {
-                newTicker = newTicker.padStart(4, '0');
-            }
+            if (currentTab === 'tw_stock' && /^\d+$/.test(newTicker) && newTicker.length < 4) { newTicker = newTicker.padStart(4, '0'); }
 
             let customTickers = JSON.parse(localStorage.getItem('wealthCustomTickers')) || { 'tw_stock': [], 'us_stock': [], 'crypto': [] };
             if (!customTickers[currentTab]) customTickers[currentTab] = [];
             
             if (!customTickers[currentTab].includes(newTicker)) {
-                // 1. 存入前端記憶體
                 customTickers[currentTab].push(newTicker);
                 localStorage.setItem('wealthCustomTickers', JSON.stringify(customTickers));
-                
-                // 2. 立即更新下拉選單並自動幫你選中它！
                 updateCoinDropdown(currentTab);
                 document.getElementById('trade-coin').value = newTicker;
                 inputEl.value = '';
-                // 【關鍵修復】選中新代號後，立刻主動呼叫一次檢查，讓 ✖ 馬上顯示！
                 toggleDeleteButton();
-
-                // 3. 在背景呼叫 Google 雲端，自動寫入 Prices 表格與公式
                 setStatus('⏳ 正在將新標的寫入 Google 雲端...', 'loading');
                 try {
-                    await fetch(API_URL, { 
-                        method: 'POST', 
-                        body: JSON.stringify({ type: 'addTicker', category: currentTab, ticker: newTicker }) 
-                    });
+                    await fetch(API_URL, { method: 'POST', body: JSON.stringify({ type: 'addTicker', category: currentTab, ticker: newTicker }) });
                     setStatus('🟢 新標的已成功加入資料庫並開始抓取報價！', 'success');
-                    // 同步一次最新價格
                     syncWithCloud(); 
-                } catch(e) {
-                    setStatus('🔴 寫入新標的失敗，請檢查網路狀態', 'error');
-                }
+                } catch(e) { setStatus('🔴 寫入新標的失敗，請檢查網路狀態', 'error'); }
             } else {
                 alert('這個標的已經在選單裡囉！');
                 inputEl.value = '';
@@ -558,42 +519,23 @@
         async function deleteCustomTicker() {
             const coinSelect = document.getElementById('trade-coin');
             const tickerToDelete = coinSelect.value;
-            
             if (!tickerToDelete) return;
-
-            // 1. 檢查防呆：預設寫死的標的不允許刪除
             const isDefault = categoryOptions[currentTab] && categoryOptions[currentTab].some(opt => opt.value === tickerToDelete);
-            if (isDefault) {
-                alert('這個是系統預設標的，無法刪除喔！');
-                return;
-            }
+            if (isDefault) { alert('這個是系統預設標的，無法刪除喔！'); return; }
 
-            // 2. 跳出確認視窗
-            if(!confirm(`確定要從選單移除自訂標的「${tickerToDelete}」嗎？\n(注意：如果你已經買了這個標的，刪除後它將無法更新即時報價！)`)) {
-                return;
-            }
+            if(!confirm(`確定要從選單移除自訂標的「${tickerToDelete}」嗎？\n(注意：如果你已經買了這個標的，刪除後它將無法更新即時報價！)`)) return;
 
-            // 3. 從前端瀏覽器記憶體中刪除
             let customTickers = JSON.parse(localStorage.getItem('wealthCustomTickers')) || { 'tw_stock': [], 'us_stock': [], 'crypto': [] };
             if (customTickers[currentTab]) {
                 customTickers[currentTab] = customTickers[currentTab].filter(t => t !== tickerToDelete);
                 localStorage.setItem('wealthCustomTickers', JSON.stringify(customTickers));
             }
-            
-            // 重新渲染選單，讓被刪除的選項消失
             updateCoinDropdown(currentTab);
-
-            // 4. 背景呼叫 Google 雲端，自動砍掉 Prices 表格裡的那行資料
             setStatus(`⏳ 正在從雲端移除 ${tickerToDelete} 的報價追蹤...`, 'loading');
             try {
-                await fetch(API_URL, { 
-                    method: 'POST', 
-                    body: JSON.stringify({ type: 'removeTicker', ticker: tickerToDelete }) 
-                });
+                await fetch(API_URL, { method: 'POST', body: JSON.stringify({ type: 'removeTicker', ticker: tickerToDelete }) });
                 setStatus('🟢 標的已成功移除！', 'success');
-            } catch(e) {
-                setStatus('🔴 移除標的失敗，請檢查網路', 'error');
-            }
+            } catch(e) { setStatus('🔴 移除標的失敗，請檢查網路', 'error'); }
         }
 
         async function saveTrade() {
@@ -674,11 +616,10 @@
         }
 
         function renderDashboardUI() {
-            let globalCurrency = tabCurrencies[currentTab]; // 取得當前頁籤專屬的計價幣別
+            let globalCurrency = tabCurrencies[currentTab]; 
             trades.sort((a, b) => new Date(a.date) - new Date(b.date));
             document.getElementById('current-ex-rate').innerText = currentExchangeRate.toFixed(2);
 
-             // 【新增】動態更新「隱藏按鈕」的外觀狀態 (根據當前頁籤)
             const hideBtn = document.getElementById('hide-zero-btn');
             if (hideBtn) {
                 let isHidden = tabHideZero[currentTab];
@@ -689,7 +630,6 @@
 
             let filteredTrades = currentTab === 'all' ? [...trades] : trades.filter(t => t.category === currentTab);
             
-            // 動態產生歷史紀錄的過濾下拉選項
             let historyFilterSelect = document.getElementById('history-filter');
             let currentFilter = historyFilterSelect ? historyFilterSelect.value : 'all';
             let uniqueCoins = [...new Set(filteredTrades.map(t => t.coin))].sort();
@@ -758,7 +698,6 @@
                 } else if (globalCurrency === 'TWD' && itemCurrency === 'USD') {
                     logPrice *= currentExchangeRate; if (logRealized !== null) logRealized *= currentExchangeRate;
                 }
-                // 【修改】特別給 NIGHT 小數點後 5 位的特權
                 let precision = (t.coin === 'NIGHT') ? 5 : ((t.coin === 'BTC' || t.coin === 'ETH' || logCurrency === 'TWD' || t.category === 'us_stock') ? 2 : 4);
                 let pnlBadge = '<span class="badge neutral-badge">-</span>';
                 if (t.type === 'sell' && logRealized !== null) {
@@ -807,7 +746,19 @@
 
             // ===== 1. 印出各別資產 =====
             for (let coin of sortedPortfolioKeys) {
+                if (tabHideZero[currentTab] && portfolio[coin].amt <= 0) {
+                    if (globalCurrency === 'USD' && portfolio[coin].category === 'tw_stock') {
+                        totalRealizedPnl += (portfolio[coin].realized / currentExchangeRate);
+                    } else if (globalCurrency === 'TWD' && portfolio[coin].category !== 'tw_stock') {
+                        totalRealizedPnl += (portfolio[coin].realized * currentExchangeRate);
+                    } else {
+                        totalRealizedPnl += portfolio[coin].realized;
+                    }
+                    continue; 
+                }
+
                 if(portfolio[coin].amt <= 0 && portfolio[coin].realized === 0) continue; 
+
                 let itemCurrency = portfolio[coin].category === 'tw_stock' ? 'TWD' : 'USD';
                 let currentPrice = 0;
                 let currentCost = portfolio[coin].cost; 
@@ -859,11 +810,9 @@
 
                 let realizedBadge = `<span class="badge ${displayRealized > 0 ? 'profit-badge' : (displayRealized < 0 ? 'loss-badge' : 'neutral-badge')}">${displayRealized > 0 ? '+' : ''}${formatMoney(displayRealized, 2, rowCurrency)}</span>`;
                 let displayCatBadgeHTML = currentTab === 'all' ? `<span class="tag-badge" style="font-weight:normal; font-size:10px;">${categoryNames[portfolio[coin].category]}</span>` : '';
-                // 【修改】特別給 NIGHT 小數點後 5 位的特權
                 let precision = (coin === 'NIGHT') ? 5 : ((coin === 'BTC' || coin === 'ETH' || rowCurrency === 'TWD' || portfolio[coin].category === 'us_stock') ? 2 : 4);
                 let priceDisplay = isAwaitingAPI ? `<span title="等待同步..." style="color:#8b949e;">${formatMoney(displayPrice, precision, rowCurrency)} ⏳</span>` : formatMoney(displayPrice, precision, rowCurrency);
 
-                // 【修改重點】判斷「當前頁籤」的開關狀態：如果啟動隱藏，且該資產股數/數量為 0，就不印出這行
                 if (!(tabHideZero[currentTab] && portfolio[coin].amt <= 0)) {
                     summaryHTML += `<tr>
                         <td class="coin-name">${coin} ${displayCatBadgeHTML}</td>
@@ -917,7 +866,47 @@
                 </tr>`;
             }
 
-            // ===== 3. 印出台幣現金 (嚴格限制只有在 all 頁籤) =====
+            // ===== 3. 印出美股美金現金 (嚴格限制在 us_stock 或 all 頁籤) =====
+            if (currentTab === 'us_stock' || currentTab === 'all') {
+                let displayCashUSD = globalCurrency === 'USD' ? cashUSD : (cashUSD * currentExchangeRate);
+                
+                totalValue += displayCashUSD;
+                totalCost += displayCashUSD;
+                totalOriginalCost += displayCashUSD;
+                
+                chartRawLabels.push('美金');
+                chartData.push(displayCashUSD);
+                costData.push(displayCashUSD);
+                chartColors.push(predefinedColors['美金']);
+
+                if (currentTab === 'all') {
+                    catTotals['us_stock'].val += displayCashUSD;
+                    catTotals['us_stock'].cost += displayCashUSD;
+                }
+
+                let convertedUSDStr = globalCurrency === 'USD' 
+                    ? `≈ NT$ ${formatMoney(cashUSD * currentExchangeRate, 2, 'TWD').replace('NT$', '')}` 
+                    : `≈ $ ${formatMoney(cashUSD, 2, 'USD').replace('$', '')}`;
+
+                summaryHTML += `
+                <tr style="background-color: rgba(46, 160, 67, 0.05);">
+                    <td class="coin-name" style="color: #2ea043;">💵 美金 <span class="tag-badge" style="font-weight:normal; font-size:10px;">USD</span></td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td style="font-weight:bold; color:#fff;">
+                        <div style="display:flex; flex-direction:column; align-items:flex-end;">
+                            <input type="number" value="${cashUSD}" onchange="updateCashUSDValue(this.value)" placeholder="輸入美金現金" 
+                                   style="width: 150px; padding: 4px 8px; border-radius: 4px; border: 1px dashed #2ea043; background: transparent; color: #2ea043; font-weight: bold; text-align: right; outline: none; font-family: 'Courier New', Courier, monospace;">
+                            <span style="font-size:11px; color:#8b949e; font-weight:normal; margin-top:4px;">${convertedUSDStr}</span>
+                        </div>
+                    </td>
+                    <td>-</td>
+                    <td>-</td>
+                </tr>`;
+            }
+
+            // ===== 4. 印出台幣現金 (嚴格限制只有在 all 頁籤) =====
             if (currentTab === 'all') {
                 let displayCash = globalCurrency === 'USD' ? (cashTWD / currentExchangeRate) : cashTWD;
                 
@@ -1039,7 +1028,6 @@
             const timeFilterEl = document.getElementById('trend-time-filter');
             const filterValue = timeFilterEl ? timeFilterEl.value : 'all';
 
-            // 【新增】把現在選擇的時間區間，存入當前頁籤專屬的記憶空間
             let savedFilters = JSON.parse(localStorage.getItem('wealthTrendFilters')) || {};
             savedFilters[currentTab] = filterValue;
             localStorage.setItem('wealthTrendFilters', JSON.stringify(savedFilters));
@@ -1170,7 +1158,7 @@
                     pointBackgroundColor: chartColor,
                     pointBorderColor: '#fff',
                     pointRadius: 3,
-                    hidden: hiddenState[chartLabel] === true // 【修復】加入了個別頁籤的圖例記憶
+                    hidden: hiddenState[chartLabel] === true 
                 }];
             }
 
