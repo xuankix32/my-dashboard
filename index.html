@@ -243,6 +243,7 @@
                 <option value="1d">一天</option>
                 <option value="1w">一週</option>
                 <option value="1m">一個月</option>
+                <option value="6m">半年</option>
                 <option value="1y">一年</option>
             </select>
         </div>
@@ -1260,6 +1261,8 @@
                     cutoffTime = latestDate.getTime() - (7 * 24 * 60 * 60 * 1000); 
                 } else if (filterValue === '1m') {
                     cutoffTime = latestDate.getTime() - (30 * 24 * 60 * 60 * 1000); 
+                } else if (filterValue === '6m') {
+                    cutoffTime = latestDate.getTime() - (183 * 24 * 60 * 60 * 1000); 
                 } else if (filterValue === '1y') {
                     cutoffTime = latestDate.getTime() - (365 * 24 * 60 * 60 * 1000); 
                 }
