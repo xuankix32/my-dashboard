@@ -1255,56 +1255,6 @@
             if (currentTab === 'all') {
                 datasets = [
                     {
-                        label: `總現值 (${globalCurrency})`,
-                        data: sortedSnaps.map(s => globalCurrency === 'USD' ? s.total_usd : s.total_twd),
-                        borderColor: '#58a6ff',
-                        backgroundColor: 'rgba(88, 166, 255, 0.1)', 
-                        borderWidth: 3,
-                        fill: true,
-                        tension: 0.2, 
-                        pointBackgroundColor: '#58a6ff',
-                        pointBorderColor: '#fff',
-                        pointRadius: 0,
-                        pointHoverRadius: 4,
-                        hidden: hiddenState[`總現值 (${globalCurrency})`] === true 
-                    },
-                    {
-                        label: `加密貨幣 (${globalCurrency})`,
-                        data: sortedSnaps.map(s => globalCurrency === 'USD' ? s.crypto_usd : s.crypto_twd),
-                        borderColor: '#f7931a',
-                        backgroundColor: 'transparent', 
-                        borderWidth: 2,
-                        fill: false,
-                        tension: 0.2, 
-                        pointRadius: 0,
-                        pointHoverRadius: 4,
-                        hidden: hiddenState[`加密貨幣 (${globalCurrency})`] === true
-                    },
-                    {
-                        label: `台股 (${globalCurrency})`,
-                        data: sortedSnaps.map(s => globalCurrency === 'USD' ? s.tw_stock_usd : s.tw_stock_twd),
-                        borderColor: '#d32f2f',
-                        backgroundColor: 'transparent', 
-                        borderWidth: 2,
-                        fill: false,
-                        tension: 0.2, 
-                        pointRadius: 0,
-                        pointHoverRadius: 4,
-                        hidden: hiddenState[`台股 (${globalCurrency})`] === true
-                    },
-                    {
-                        label: `美股 (${globalCurrency})`,
-                        data: sortedSnaps.map(s => globalCurrency === 'USD' ? s.us_stock_usd : s.us_stock_twd),
-                        borderColor: '#1976d2',
-                        backgroundColor: 'transparent', 
-                        borderWidth: 2,
-                        fill: false,
-                        tension: 0.2, 
-                        pointRadius: 0,
-                        pointHoverRadius: 4,
-                        hidden: hiddenState[`美股 (${globalCurrency})`] === true
-                    },
-                    {
                         label: `現金 (${globalCurrency})`,
                         data: sortedSnaps.map(s => {
                             let total = globalCurrency === 'USD' ? s.total_usd : s.total_twd;
@@ -1315,13 +1265,49 @@
                             return Math.round(cashVal * 100) / 100;
                         }),
                         borderColor: '#3fb950', 
-                        backgroundColor: 'transparent', 
+                        backgroundColor: 'rgba(63, 185, 80, 0.4)', 
                         borderWidth: 2,
-                        fill: false,
+                        fill: true,
                         tension: 0.2, 
                         pointRadius: 0,
                         pointHoverRadius: 4,
                         hidden: hiddenState[`現金 (${globalCurrency})`] === true
+                    },
+                    {
+                        label: `台股 (${globalCurrency})`,
+                        data: sortedSnaps.map(s => globalCurrency === 'USD' ? s.tw_stock_usd : s.tw_stock_twd),
+                        borderColor: '#d32f2f',
+                        backgroundColor: 'rgba(211, 47, 47, 0.4)', 
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.2, 
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        hidden: hiddenState[`台股 (${globalCurrency})`] === true
+                    },
+                    {
+                        label: `美股 (${globalCurrency})`,
+                        data: sortedSnaps.map(s => globalCurrency === 'USD' ? s.us_stock_usd : s.us_stock_twd),
+                        borderColor: '#1976d2',
+                        backgroundColor: 'rgba(25, 118, 210, 0.4)', 
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.2, 
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        hidden: hiddenState[`美股 (${globalCurrency})`] === true
+                    },
+                    {
+                        label: `加密貨幣 (${globalCurrency})`,
+                        data: sortedSnaps.map(s => globalCurrency === 'USD' ? s.crypto_usd : s.crypto_twd),
+                        borderColor: '#f7931a',
+                        backgroundColor: 'rgba(247, 147, 26, 0.4)', 
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.2, 
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        hidden: hiddenState[`加密貨幣 (${globalCurrency})`] === true
                     }
                 ];
             } else {
@@ -1393,11 +1379,39 @@
                                 localStorage.setItem('wealthTrendLegend', JSON.stringify(savedState));
                             }
                         }, 
-                        tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${formatMoney(c.parsed.y, 2, globalCurrency)}` } } 
+                        tooltip: { 
+                            callbacks: { 
+                                label: function(c) { 
+                                    return ` ${c.dataset.label}: ${formatMoney(c.parsed.y, 2, globalCurrency)}`;
+                                },
+                                afterBody: function(items) {
+                                    if (currentTab !== 'all') return '';
+                                    let currentTotal = 0;
+                                    items.forEach(i => currentTotal += i.parsed.y);
+                                    
+                                    let prevTotal = null;
+                                    let index = items[0].dataIndex;
+                                    if (index > 0) {
+                                        prevTotal = 0;
+                                        items.forEach(i => prevTotal += i.dataset.data[index - 1]);
+                                    }
+                                    
+                                    let footerStr = `\n------------------\n💰 總現值: ${formatMoney(currentTotal, 2, globalCurrency)}`;
+                                    if (prevTotal !== null && prevTotal > 0) {
+                                        let diff = currentTotal - prevTotal;
+                                        let diffSign = diff >= 0 ? '+' : '';
+                                        let diffIcon = diff >= 0 ? '📈' : '📉';
+                                        let pct = (diff / prevTotal) * 100;
+                                        footerStr += `\n${diffIcon} 較前次: ${diffSign}${formatMoney(diff, 2, globalCurrency)} (${diffSign}${pct.toFixed(2)}%)`;
+                                    }
+                                    return footerStr;
+                                }
+                            } 
+                        } 
                     },
                     scales: {
-                        x: { grid: { color: '#30363d' }, ticks: { color: '#8b949e', maxTicksLimit: 7 } },
-                        y: { grid: { color: '#30363d' }, ticks: { color: '#8b949e' } }
+                        x: { stacked: currentTab === 'all', grid: { color: '#30363d' }, ticks: { color: '#8b949e', maxTicksLimit: 7 } },
+                        y: { stacked: currentTab === 'all', grid: { color: '#30363d' }, ticks: { color: '#8b949e' } }
                     }
                 }
             });
