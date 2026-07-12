@@ -128,7 +128,7 @@
         
         <div class="card" style="display: flex; flex-direction: column; gap: 25px;">
             <div style="display: flex; justify-content: center; margin-bottom: 5px; z-index: 10;">
-                <button class="sort-btn" id="pie-mode-btn" onclick="togglePieChartMode()" style="display: none; padding: 6px 12px; font-size: 12px; border-color: #58a6ff; color: #58a6ff;">🔄 看大分類佔比</button>
+                <button class="sort-btn" id="pie-mode-btn" onclick="togglePieChartMode()" style="display: none; padding: 6px 12px; font-size: 12px; border-color: #58a6ff; color: #58a6ff;">🔄 圓餅圖：看大類資產</button>
             </div>
 
             <div style="width: 100%;">
@@ -734,7 +734,7 @@
                 'tw_stock': { val: 0, cost: 0, label: '台股', color: '#d32f2f' },
                 'us_stock': { val: 0, cost: 0, label: '美股', color: '#1976d2' },
                 'crypto': { val: 0, cost: 0, label: '加密貨幣', color: '#f7931a' },
-                'cash': { val: 0, cost: 0, label: '現金', color: '#3fb950' }
+                'cash': { val: 0, cost: 0, label: '現金與穩定幣', color: '#3fb950' }
             };
 
             let sortedPortfolioKeys = Object.keys(portfolio).sort((a, b) => {
@@ -959,7 +959,7 @@
             if (pieModeBtn) {
                 if (currentTab === 'all') {
                     pieModeBtn.style.display = 'flex';
-                    pieModeBtn.innerText = pieChartMode === 'detail' ? '🔄 圓餅圖：看四大分類' : '🔄 圓餅圖：看單一標的';
+                    pieModeBtn.innerText = pieChartMode === 'detail' ? '🔄 圓餅圖：看大類資產' : '🔄 圓餅圖：看單一標的展開';
                 } else {
                     pieModeBtn.style.display = 'none'; 
                 }
