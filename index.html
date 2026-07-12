@@ -255,6 +255,12 @@
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
             <h3 style="margin:0;">📜 交易歷史 (Log)</h3>
             <div style="display: flex; gap: 10px; align-items: center;">
+                <select id="history-category-filter" onchange="resetHistoryCoinFilter(); renderDashboardUI()" style="display: none; padding: 6px 10px; font-size: 13px; border-radius: 6px; border: 1px solid #30363d; background: #21262d; color: #c9d1d9; outline: none; cursor: pointer;">
+                    <option value="all">全部類別</option>
+                    <option value="tw_stock">台股</option>
+                    <option value="us_stock">美股</option>
+                    <option value="crypto">加密貨幣</option>
+                </select>
                 <select id="history-filter" onchange="renderDashboardUI()" style="padding: 6px 10px; font-size: 13px; border-radius: 6px; border: 1px solid #30363d; background: #21262d; color: #c9d1d9; outline: none; cursor: pointer;">
                     <option value="all">全部標的</option>
                 </select>
@@ -308,6 +314,11 @@
             document.getElementById('login-error').style.display = showError ? 'block' : 'none';
             localStorage.removeItem('wealthPwd');
             wealthPwd = '';
+        }
+
+        function resetHistoryCoinFilter() {
+            const coinFilter = document.getElementById('history-filter');
+            if (coinFilter) coinFilter.value = 'all';
         }
 
         // 【新增】美金的專屬顏色
@@ -752,9 +763,21 @@
 
             let filteredTrades = currentTab === 'all' ? [...trades] : trades.filter(t => t.category === currentTab);
             
+            let categoryFilterSelect = document.getElementById('history-category-filter');
+            let currentCategoryFilter = 'all';
+            if (categoryFilterSelect) {
+                categoryFilterSelect.style.display = currentTab === 'all' ? 'inline-block' : 'none';
+                currentCategoryFilter = categoryFilterSelect.value;
+            }
+
             let historyFilterSelect = document.getElementById('history-filter');
             let currentFilter = historyFilterSelect ? historyFilterSelect.value : 'all';
-            let uniqueCoins = [...new Set(filteredTrades.map(t => t.coin))].sort();
+            
+            let dropdownTrades = currentTab === 'all' && currentCategoryFilter !== 'all' 
+                ? filteredTrades.filter(t => t.category === currentCategoryFilter) 
+                : filteredTrades;
+                
+            let uniqueCoins = [...new Set(dropdownTrades.map(t => t.coin))].sort();
             
             if (currentFilter !== 'all' && !uniqueCoins.includes(currentFilter)) {
                 currentFilter = 'all';
@@ -805,9 +828,15 @@
             const historyBody = document.getElementById('history-body');
 
             let finalHistoryTrades = tradesForDisplay;
+            let finalCategoryFilter = document.getElementById('history-category-filter') ? document.getElementById('history-category-filter').value : 'all';
+            
+            if (currentTab === 'all' && finalCategoryFilter !== 'all') {
+                finalHistoryTrades = finalHistoryTrades.filter(t => t.category === finalCategoryFilter);
+            }
             if (currentFilter !== 'all') {
                 finalHistoryTrades = finalHistoryTrades.filter(t => t.coin === currentFilter);
             }
+            
             let sortedTrades = sortOrder === 'desc' ? [...finalHistoryTrades].reverse() : [...finalHistoryTrades]; 
             
             historyBody.innerHTML = sortedTrades.map((t) => {
