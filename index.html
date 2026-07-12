@@ -840,8 +840,8 @@
                 chartColors.push(predefinedColors['USDT/USDC']); 
 
                 if (currentTab === 'all') {
-                    catTotals['crypto'].val += displayStable;
-                    catTotals['crypto'].cost += displayStable;
+                    catTotals['cash'].val += displayStable;
+                    catTotals['cash'].cost += displayStable;
                 }
 
                 let convertedStableStr = `≈ NT$ ${formatMoney(stableCoinUSD * currentExchangeRate, 2, 'TWD').replace('NT$', '')}`;
@@ -878,8 +878,8 @@
                 chartColors.push(predefinedColors['美金']);
 
                 if (currentTab === 'all') {
-                    catTotals['us_stock'].val += displayCashUSD;
-                    catTotals['us_stock'].cost += displayCashUSD;
+                    catTotals['cash'].val += displayCashUSD;
+                    catTotals['cash'].cost += displayCashUSD;
                 }
 
                 let convertedUSDStr = `≈ NT$ ${formatMoney(cashUSD * currentExchangeRate, 2, 'TWD').replace('NT$', '')}`;
