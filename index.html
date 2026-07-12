@@ -136,6 +136,7 @@
                 <div style="width: 100%; max-width: 250px; margin: 0 auto;">
                     <canvas id="portfolioChart"></canvas>
                 </div>
+                <div id="portfolio-legend" style="max-height: 120px; overflow-y: auto; margin-top: 10px; padding: 0 10px; font-size: 13px; color: #c9d1d9;"></div>
             </div>
             <div style="width: 100%; height: 1px; background-color: #30363d;"></div>
             <div style="width: 100%;">
@@ -143,6 +144,7 @@
                 <div style="width: 100%; max-width: 250px; margin: 0 auto;">
                     <canvas id="costChart"></canvas>
                 </div>
+                <div id="cost-legend" style="max-height: 120px; overflow-y: auto; margin-top: 10px; padding: 0 10px; font-size: 13px; color: #c9d1d9;"></div>
             </div>
         </div>
     </div>
@@ -985,11 +987,23 @@
                 let percentage = totalValue > 0 ? ((chartData[index] / totalValue) * 100).toFixed(1) : 0; 
                 return `${coin} (${percentage}%)`;
             });
+            let valLegendHTML = '';
+            labelsWithPercentageVal.forEach((label, i) => {
+                valLegendHTML += `<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: ${chartColors[i]};"></span>
+                        <span>${label.split(' ')[0]}</span>
+                    </div>
+                    <span style="font-weight: bold;">${label.split(' ')[1] || ''}</span>
+                </div>`;
+            });
+            document.getElementById('portfolio-legend').innerHTML = valLegendHTML;
+
             const ctxVal = document.getElementById('portfolioChart').getContext('2d');
             if(chartInstance) chartInstance.destroy();
             chartInstance = new Chart(ctxVal, {
                 type: 'doughnut', data: { labels: labelsWithPercentageVal, datasets: [{ data: chartData, backgroundColor: chartColors, borderColor: '#161b22', borderWidth: 3 }] },
-                options: { aspectRatio: 0.65, responsive: true, plugins: { title: { display: false }, legend: { position: 'bottom', labels: { color: '#c9d1d9', font: { size: 12 }, padding: 10, usePointStyle: true } }, tooltip: { callbacks: { label: function(c) { return c.label.includes('無資料') ? ' 尚無資產' : ` ${c.label} : ${formatMoney(c.parsed, 2, totalCurrency)}`; } } } }, animation: { duration: 0 }, cutout: '65%', layout: { padding: { top: 5, bottom: 15 } } }
+                options: { aspectRatio: 1, responsive: true, plugins: { title: { display: false }, legend: { display: false }, tooltip: { callbacks: { label: function(c) { return c.label.includes('無資料') ? ' 尚無資產' : ` ${c.label} : ${formatMoney(c.parsed, 2, totalCurrency)}`; } } } }, animation: { duration: 0 }, cutout: '65%', layout: { padding: { top: 5, bottom: 5 } } }
             });
 
             let filteredCostLabels = [], filteredCostData = [], filteredCostColors = [], filteredTotalCost = 0;
@@ -1009,11 +1023,23 @@
                 let percentage = filteredTotalCost > 0 ? ((filteredCostData[index] / filteredTotalCost) * 100).toFixed(1) : 0; 
                 return `${coin} (${percentage}%)`;
             });
+            let costLegendHTML = '';
+            labelsWithPercentageCost.forEach((label, i) => {
+                costLegendHTML += `<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: ${filteredCostColors[i]};"></span>
+                        <span>${label.split(' ')[0]}</span>
+                    </div>
+                    <span style="font-weight: bold;">${label.split(' ')[1] || ''}</span>
+                </div>`;
+            });
+            document.getElementById('cost-legend').innerHTML = costLegendHTML;
+
             const ctxCost = document.getElementById('costChart').getContext('2d');
             if(costChartInstance) costChartInstance.destroy();
             costChartInstance = new Chart(ctxCost, {
                 type: 'doughnut', data: { labels: labelsWithPercentageCost, datasets: [{ data: filteredCostData, backgroundColor: filteredCostColors, borderColor: '#161b22', borderWidth: 3 }] },
-                options: { aspectRatio: 0.65, responsive: true, plugins: { title: { display: false }, legend: { position: 'bottom', labels: { color: '#c9d1d9', font: { size: 12 }, padding: 10, usePointStyle: true } }, tooltip: { callbacks: { label: function(c) { return c.label.includes('無資料') ? ' 尚無資產' : ` 成本 : ${formatMoney(c.parsed, 2, totalCurrency)}`; } } } }, animation: { duration: 0 }, cutout: '65%', layout: { padding: { top: 5, bottom: 15 } } }
+                options: { aspectRatio: 1, responsive: true, plugins: { title: { display: false }, legend: { display: false }, tooltip: { callbacks: { label: function(c) { return c.label.includes('無資料') ? ' 尚無資產' : ` 成本 : ${formatMoney(c.parsed, 2, totalCurrency)}`; } } } }, animation: { duration: 0 }, cutout: '65%', layout: { padding: { top: 5, bottom: 5 } } }
             });
 
             if (snapshots.length > 0) {
