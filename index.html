@@ -1087,11 +1087,11 @@
 
             document.getElementById('summary-body').innerHTML = summaryHTML || `<tr><td colspan="7" style="text-align:center; color:#8b949e; padding: 30px;">尚無持倉資料。</td></tr>`;
 
-            let currentTotalVal = totalCurrency === 'USD' ? totalValue : (totalValue * currentExchangeRate);
+            let currentTotalVal = globalCurrency === 'USD' ? totalValue : (totalValue * currentExchangeRate);
             
             let athVal = 0;
             if (snapshots.length > 0) {
-                let maxSnap = Math.max(...snapshots.map(s => totalCurrency === 'USD' ? s.total_usd : s.total_twd));
+                let maxSnap = Math.max(...snapshots.map(s => globalCurrency === 'USD' ? s.total_usd : s.total_twd));
                 athVal = Math.max(maxSnap, currentTotalVal);
             } else {
                 athVal = currentTotalVal;
@@ -1105,7 +1105,7 @@
                 athHTML = `<span class="badge" style="background: rgba(63,185,80,0.1); color: #3fb950; font-size:12px; margin-left: 10px; padding: 2px 6px;">🔥 歷史新高！</span>`;
             }
             
-            document.getElementById('total-value').innerHTML = formatMoney(totalValue, 2, totalCurrency) + athHTML;
+            document.getElementById('total-value').innerHTML = formatMoney(totalValue, 2, globalCurrency) + athHTML;
             
             let totalPercentChange = 0;
             if (totalOriginalCost > 0) { totalPercentChange = (totalUnrealizedPnl / totalOriginalCost) * 100; }
