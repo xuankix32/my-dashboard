@@ -1087,21 +1087,26 @@
 
             document.getElementById('summary-body').innerHTML = summaryHTML || `<tr><td colspan="7" style="text-align:center; color:#8b949e; padding: 30px;">尚無持倉資料。</td></tr>`;
 
-            let currentTotalVal = globalCurrency === 'USD' ? totalValue : (totalValue * currentExchangeRate);
-            
             let athVal = 0;
             if (snapshots.length > 0) {
-                let maxSnap = Math.max(...snapshots.map(s => globalCurrency === 'USD' ? s.total_usd : s.total_twd));
-                athVal = Math.max(maxSnap, currentTotalVal);
+                let maxSnap = Math.max(...snapshots.map(s => {
+                    let val = 0;
+                    if (currentTab === 'all') val = globalCurrency === 'USD' ? s.total_usd : s.total_twd;
+                    else if (currentTab === 'crypto') val = globalCurrency === 'USD' ? s.crypto_usd : s.crypto_twd;
+                    else if (currentTab === 'tw_stock') val = globalCurrency === 'USD' ? s.tw_stock_usd : s.tw_stock_twd;
+                    else if (currentTab === 'us_stock') val = globalCurrency === 'USD' ? s.us_stock_usd : s.us_stock_twd;
+                    return val || 0;
+                }));
+                athVal = Math.max(maxSnap, totalValue);
             } else {
-                athVal = currentTotalVal;
+                athVal = totalValue;
             }
             
             let athHTML = '';
-            if (athVal > 0 && currentTotalVal < athVal) {
-                let diffPct = ((currentTotalVal - athVal) / athVal) * 100;
+            if (athVal > 0 && totalValue < athVal) {
+                let diffPct = ((totalValue - athVal) / athVal) * 100;
                 athHTML = `<span class="badge" style="background: rgba(255,193,7,0.1); color: #ffc107; font-size:12px; margin-left: 10px; padding: 2px 6px;">💧 距新高 ${diffPct.toFixed(2)}%</span>`;
-            } else if (athVal > 0 && currentTotalVal >= athVal && snapshots.length > 0) {
+            } else if (athVal > 0 && totalValue >= athVal && snapshots.length > 0) {
                 athHTML = `<span class="badge" style="background: rgba(63,185,80,0.1); color: #3fb950; font-size:12px; margin-left: 10px; padding: 2px 6px;">🔥 歷史新高！</span>`;
             }
             
