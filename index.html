@@ -1087,8 +1087,25 @@
 
             document.getElementById('summary-body').innerHTML = summaryHTML || `<tr><td colspan="7" style="text-align:center; color:#8b949e; padding: 30px;">尚無持倉資料。</td></tr>`;
 
-            let totalCurrency = globalCurrency;
-            document.getElementById('total-value').innerText = formatMoney(totalValue, 2, totalCurrency);
+            let currentTotalVal = totalCurrency === 'USD' ? totalValue : (totalValue * currentExchangeRate);
+            
+            let athVal = 0;
+            if (snapshots.length > 0) {
+                let maxSnap = Math.max(...snapshots.map(s => totalCurrency === 'USD' ? s.total_usd : s.total_twd));
+                athVal = Math.max(maxSnap, currentTotalVal);
+            } else {
+                athVal = currentTotalVal;
+            }
+            
+            let athHTML = '';
+            if (athVal > 0 && currentTotalVal < athVal) {
+                let diffPct = ((currentTotalVal - athVal) / athVal) * 100;
+                athHTML = `<span class="badge" style="background: rgba(255,193,7,0.1); color: #ffc107; font-size:12px; margin-left: 10px; padding: 2px 6px;">💧 距新高 ${diffPct.toFixed(2)}%</span>`;
+            } else if (athVal > 0 && currentTotalVal >= athVal && snapshots.length > 0) {
+                athHTML = `<span class="badge" style="background: rgba(63,185,80,0.1); color: #3fb950; font-size:12px; margin-left: 10px; padding: 2px 6px;">🔥 歷史新高！</span>`;
+            }
+            
+            document.getElementById('total-value').innerHTML = formatMoney(totalValue, 2, totalCurrency) + athHTML;
             
             let totalPercentChange = 0;
             if (totalOriginalCost > 0) { totalPercentChange = (totalUnrealizedPnl / totalOriginalCost) * 100; }
@@ -1249,6 +1266,61 @@
                 return `${d.getMonth()+1}/${d.getDate()} ${d.getHours().toString().padStart(2, '0')}:00`;
             });
 
+            let sortedTrades = [...trades].sort((a,b) => new Date(a.date) - new Date(b.date));
+            let tradeIndex = 0;
+            let histPortfolio = {};
+
+            sortedSnaps.forEach(s => {
+                let sDate = new Date(s.date).getTime();
+                
+                while(tradeIndex < sortedTrades.length && new Date(sortedTrades[tradeIndex].date).getTime() <= sDate) {
+                    let t = sortedTrades[tradeIndex];
+                    if (!histPortfolio[t.coin]) histPortfolio[t.coin] = { amt: 0, cost: 0 };
+                    
+                    if(t.type === 'buy') {
+                        histPortfolio[t.coin].amt += t.amount;
+                        histPortfolio[t.coin].cost += (t.amount * t.price);
+                    } else if(t.type === 'sell') {
+                        if (histPortfolio[t.coin].amt > 0) {
+                            let avgCost = histPortfolio[t.coin].cost / histPortfolio[t.coin].amt;
+                            histPortfolio[t.coin].amt -= t.amount;
+                            histPortfolio[t.coin].cost -= (t.amount * avgCost);
+                        }
+                    }
+                    tradeIndex++;
+                }
+
+                let histExRate = s.total_usd > 0 ? (s.total_twd / s.total_usd) : globalExRate;
+                let histAssetCostUSD = 0;
+                let histCostCat = { crypto_usd: 0, tw_stock_twd: 0, us_stock_usd: 0 };
+
+                for (let coin in histPortfolio) {
+                    if (histPortfolio[coin].amt > 0) {
+                        let tRef = sortedTrades.find(tr => tr.coin === coin);
+                        let cat = tRef ? tRef.category : '';
+                        let costVal = histPortfolio[coin].cost; 
+                        
+                        if (cat === 'tw_stock') histCostCat.tw_stock_twd += costVal;
+                        else if (cat === 'crypto') histCostCat.crypto_usd += costVal;
+                        else if (cat === 'us_stock') histCostCat.us_stock_usd += costVal;
+                        
+                        if (cat === 'tw_stock') histAssetCostUSD += (costVal / histExRate);
+                        else histAssetCostUSD += costVal;
+                    }
+                }
+
+                let impliedCashUSD = s.total_usd - s.crypto_usd - s.tw_stock_usd - s.us_stock_usd;
+                s.hist_cost_usd = histAssetCostUSD + impliedCashUSD;
+                s.hist_cost_twd = s.hist_cost_usd * histExRate;
+                
+                s.hist_cost_crypto_usd = histCostCat.crypto_usd;
+                s.hist_cost_crypto_twd = histCostCat.crypto_usd * histExRate;
+                s.hist_cost_tw_stock_twd = histCostCat.tw_stock_twd;
+                s.hist_cost_tw_stock_usd = histCostCat.tw_stock_twd / histExRate;
+                s.hist_cost_us_stock_usd = histCostCat.us_stock_usd;
+                s.hist_cost_us_stock_twd = histCostCat.us_stock_usd * histExRate;
+            });
+
             let hiddenState = JSON.parse(localStorage.getItem('wealthTrendLegend')) || {};
             let datasets = [];
 
@@ -1271,6 +1343,7 @@
                         tension: 0.2, 
                         pointRadius: 0,
                         pointHoverRadius: 4,
+                        stack: 'Stack 0',
                         hidden: hiddenState[`現金 (${globalCurrency})`] === true
                     },
                     {
@@ -1283,6 +1356,7 @@
                         tension: 0.2, 
                         pointRadius: 0,
                         pointHoverRadius: 4,
+                        stack: 'Stack 0',
                         hidden: hiddenState[`台股 (${globalCurrency})`] === true
                     },
                     {
@@ -1295,6 +1369,7 @@
                         tension: 0.2, 
                         pointRadius: 0,
                         pointHoverRadius: 4,
+                        stack: 'Stack 0',
                         hidden: hiddenState[`美股 (${globalCurrency})`] === true
                     },
                     {
@@ -1307,7 +1382,22 @@
                         tension: 0.2, 
                         pointRadius: 0,
                         pointHoverRadius: 4,
+                        stack: 'Stack 0',
                         hidden: hiddenState[`加密貨幣 (${globalCurrency})`] === true
+                    },
+                    {
+                        label: `累積投入本金 (${globalCurrency})`,
+                        data: sortedSnaps.map(s => globalCurrency === 'USD' ? s.hist_cost_usd : s.hist_cost_twd),
+                        borderColor: '#ffffff',
+                        borderDash: [5, 5],
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.2,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        stack: 'Stack 1',
+                        order: -1,
+                        hidden: hiddenState[`累積投入本金 (${globalCurrency})`] === true
                     }
                 ];
             } else {
@@ -1317,14 +1407,17 @@
 
                 if (currentTab === 'crypto') {
                     dataKey = globalCurrency === 'USD' ? 'crypto_usd' : 'crypto_twd';
+                    costDataKey = globalCurrency === 'USD' ? 'hist_cost_crypto_usd' : 'hist_cost_crypto_twd';
                     chartLabel = `加密貨幣走勢 (${globalCurrency})`;
                     chartColor = '#f7931a'; 
                 } else if (currentTab === 'tw_stock') {
                     dataKey = globalCurrency === 'USD' ? 'tw_stock_usd' : 'tw_stock_twd';
+                    costDataKey = globalCurrency === 'USD' ? 'hist_cost_tw_stock_usd' : 'hist_cost_tw_stock_twd';
                     chartLabel = `台股走勢 (${globalCurrency})`;
                     chartColor = '#d32f2f'; 
                 } else if (currentTab === 'us_stock') {
                     dataKey = globalCurrency === 'USD' ? 'us_stock_usd' : 'us_stock_twd';
+                    costDataKey = globalCurrency === 'USD' ? 'hist_cost_us_stock_usd' : 'hist_cost_us_stock_twd';
                     chartLabel = `美股走勢 (${globalCurrency})`;
                     chartColor = '#1976d2'; 
                 }
@@ -1342,6 +1435,19 @@
                     pointRadius: 0,
                     pointHoverRadius: 4,
                     hidden: hiddenState[chartLabel] === true 
+                },
+                {
+                    label: `累積投入本金 (${globalCurrency})`,
+                    data: sortedSnaps.map(s => s[costDataKey] || 0),
+                    borderColor: '#ffffff',
+                    borderDash: [5, 5],
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.2,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    order: -1,
+                    hidden: hiddenState[`累積投入本金 (${globalCurrency})`] === true
                 }];
             }
 
@@ -1385,24 +1491,45 @@
                                     return ` ${c.dataset.label}: ${formatMoney(c.parsed.y, 2, globalCurrency)}`;
                                 },
                                 afterBody: function(items) {
-                                    if (currentTab !== 'all') return '';
                                     let currentTotal = 0;
-                                    items.forEach(i => currentTotal += i.parsed.y);
+                                    let isAllTab = currentTab === 'all';
+                                    
+                                    // For 'all' tab, we only sum up Stack 0 (Area blocks) for the main Total. Cost is separate.
+                                    items.forEach(i => {
+                                        if (!isAllTab) {
+                                            if (!i.dataset.label.includes("本金")) currentTotal += i.parsed.y;
+                                        } else {
+                                            if (i.dataset.stack === 'Stack 0') currentTotal += i.parsed.y;
+                                        }
+                                    });
+                                    
+                                    if (currentTotal === 0 && items.length > 0) {
+                                        currentTotal = items[0].parsed.y; // fallback if only one item is hovered
+                                    }
                                     
                                     let prevTotal = null;
                                     let index = items[0].dataIndex;
                                     if (index > 0) {
                                         prevTotal = 0;
-                                        items.forEach(i => prevTotal += i.dataset.data[index - 1]);
+                                        items.forEach(i => {
+                                            if (!isAllTab) {
+                                                if (!i.dataset.label.includes("本金")) prevTotal += i.dataset.data[index - 1];
+                                            } else {
+                                                if (i.dataset.stack === 'Stack 0') prevTotal += i.dataset.data[index - 1];
+                                            }
+                                        });
                                     }
                                     
-                                    let footerStr = `\n------------------\n💰 總現值: ${formatMoney(currentTotal, 2, globalCurrency)}`;
-                                    if (prevTotal !== null && prevTotal > 0) {
-                                        let diff = currentTotal - prevTotal;
-                                        let diffSign = diff >= 0 ? '+' : '';
-                                        let diffIcon = diff >= 0 ? '📈' : '📉';
-                                        let pct = (diff / prevTotal) * 100;
-                                        footerStr += `\n${diffIcon} 較前次: ${diffSign}${formatMoney(diff, 2, globalCurrency)} (${diffSign}${pct.toFixed(2)}%)`;
+                                    let footerStr = '';
+                                    if (isAllTab) {
+                                        footerStr += `\n------------------\n💰 總現值: ${formatMoney(currentTotal, 2, globalCurrency)}`;
+                                        if (prevTotal !== null && prevTotal > 0) {
+                                            let diff = currentTotal - prevTotal;
+                                            let diffSign = diff >= 0 ? '+' : '';
+                                            let diffIcon = diff >= 0 ? '📈' : '📉';
+                                            let pct = (diff / prevTotal) * 100;
+                                            footerStr += `\n${diffIcon} 較前次: ${diffSign}${formatMoney(diff, 2, globalCurrency)} (${diffSign}${pct.toFixed(2)}%)`;
+                                        }
                                     }
                                     return footerStr;
                                 }
