@@ -132,7 +132,13 @@
             </div>
 
             <div style="width: 100%;">
-                <h3 style="margin: 0 0 5px 0; font-size: 16px; color: #e0e0e0;">📊 現值佔比分佈</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                    <h3 style="margin: 0; font-size: 16px; color: #e0e0e0;">📊 現值佔比分佈</h3>
+                    <label style="font-size: 12px; color: #8b949e; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                        <input type="checkbox" id="show-cash-toggle" onchange="toggleShowCash()" checked>
+                        <span>含現金</span>
+                    </label>
+                </div>
                 <div style="width: 100%; max-width: 250px; margin: 0 auto;">
                     <canvas id="portfolioChart"></canvas>
                 </div>
@@ -203,6 +209,7 @@
         let tabHideZero = JSON.parse(localStorage.getItem('wealthHideZeroTabs')) || { 'tw_stock': false, 'us_stock': false, 'crypto': false, 'all': false };
         let tabCurrencies = JSON.parse(localStorage.getItem('wealthCurrencies')) || { 'tw_stock': 'TWD', 'us_stock': 'USD', 'crypto': 'USD', 'all': 'USD' };    
         let pieChartMode = localStorage.getItem('wealthPieMode') || 'detail'; 
+        let showCashInValueChart = localStorage.getItem('wealthShowCashInVal') ? JSON.parse(localStorage.getItem('wealthShowCashInVal')) : true;
 
         // 【新增】美金的專屬顏色
         const predefinedColors = { 'BTC': '#f7931a', 'ETH': '#627eea', 'ADA': '#0033ad', '2330': '#d32f2f', '0050': '#1976d2', '現金': '#3fb950', 'USDT/USDC': '#26a17b', '美金': '#2ea043' };
@@ -617,7 +624,16 @@
             document.getElementById('cancel-btn').style.display = 'none';
         }
 
+        function toggleShowCash() {
+            showCashInValueChart = document.getElementById('show-cash-toggle').checked;
+            localStorage.setItem('wealthShowCashInVal', JSON.stringify(showCashInValueChart));
+            renderDashboardUI();
+        }
+
         function renderDashboardUI() {
+            const cashToggleEl = document.getElementById('show-cash-toggle');
+            if(cashToggleEl) cashToggleEl.checked = showCashInValueChart;
+
             let globalCurrency = tabCurrencies[currentTab]; 
             trades.sort((a, b) => new Date(a.date) - new Date(b.date));
             document.getElementById('current-ex-rate').innerText = currentExchangeRate.toFixed(2);
@@ -983,14 +999,28 @@
                 chartRawLabels = ['無資料']; chartData = [1]; chartColors = ['#21262d']; costData = [1]; totalValue = 1; totalCost = 1;
             }
 
-            let labelsWithPercentageVal = chartRawLabels.map((coin, index) => {
-                let percentage = totalValue > 0 ? ((chartData[index] / totalValue) * 100).toFixed(1) : 0; 
+            let filteredValLabels = [], filteredValData = [], filteredValColors = [], filteredTotalVal = 0;
+            chartRawLabels.forEach((label, index) => {
+                if (!showCashInValueChart && (label === '現金' || label === '美金' || label === 'USDT/USDC' || label === '現金與穩定幣')) {
+                    return;
+                }
+                filteredValLabels.push(label);
+                filteredValData.push(chartData[index]);
+                filteredValColors.push(chartColors[index]);
+                filteredTotalVal += chartData[index];
+            });
+            if(filteredValData.length === 0) {
+                filteredValLabels = ['無資料']; filteredValData = [1]; filteredValColors = ['#21262d']; filteredTotalVal = 1;
+            }
+
+            let labelsWithPercentageVal = filteredValLabels.map((coin, index) => {
+                let percentage = filteredTotalVal > 0 ? ((filteredValData[index] / filteredTotalVal) * 100).toFixed(1) : 0; 
                 return `${coin} (${percentage}%)`;
             });
             let valLegendHTML = '';
             labelsWithPercentageVal.forEach((label, i) => {
                 valLegendHTML += `<div style="display: flex; align-items: center; gap: 4px;">
-                    <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: ${chartColors[i]}; flex-shrink: 0;"></span>
+                    <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: ${filteredValColors[i]}; flex-shrink: 0;"></span>
                     <span style="font-size: 11px; white-space: nowrap;">${label.split(' ')[0]}</span>
                     <span style="font-weight: bold; font-size: 11px;">${label.split(' ')[1] || ''}</span>
                 </div>`;
@@ -1000,7 +1030,7 @@
             const ctxVal = document.getElementById('portfolioChart').getContext('2d');
             if(chartInstance) chartInstance.destroy();
             chartInstance = new Chart(ctxVal, {
-                type: 'doughnut', data: { labels: labelsWithPercentageVal, datasets: [{ data: chartData, backgroundColor: chartColors, borderColor: '#161b22', borderWidth: 3 }] },
+                type: 'doughnut', data: { labels: labelsWithPercentageVal, datasets: [{ data: filteredValData, backgroundColor: filteredValColors, borderColor: '#161b22', borderWidth: 3 }] },
                 options: { aspectRatio: 1, responsive: true, plugins: { title: { display: false }, legend: { display: false }, tooltip: { callbacks: { label: function(c) { return c.label.includes('無資料') ? ' 尚無資產' : ` ${c.label} : ${formatMoney(c.parsed, 2, totalCurrency)}`; } } } }, animation: { duration: 0 }, cutout: '65%', layout: { padding: { top: 5, bottom: 5 } } }
             });
 
