@@ -844,9 +844,7 @@
                     catTotals['crypto'].cost += displayStable;
                 }
 
-                let convertedStableStr = globalCurrency === 'USD' 
-                    ? `≈ NT$ ${formatMoney(stableCoinUSD * currentExchangeRate, 2, 'TWD').replace('NT$', '')}` 
-                    : `≈ $ ${formatMoney(stableCoinUSD, 2, 'USD').replace('$', '')}`;
+                let convertedStableStr = `≈ NT$ ${formatMoney(stableCoinUSD * currentExchangeRate, 2, 'TWD').replace('NT$', '')}`;
 
                 summaryHTML += `
                 <tr style="background-color: rgba(38, 161, 123, 0.05);">
@@ -884,9 +882,7 @@
                     catTotals['us_stock'].cost += displayCashUSD;
                 }
 
-                let convertedUSDStr = globalCurrency === 'USD' 
-                    ? `≈ NT$ ${formatMoney(cashUSD * currentExchangeRate, 2, 'TWD').replace('NT$', '')}` 
-                    : `≈ $ ${formatMoney(cashUSD, 2, 'USD').replace('$', '')}`;
+                let convertedUSDStr = `≈ NT$ ${formatMoney(cashUSD * currentExchangeRate, 2, 'TWD').replace('NT$', '')}`;
 
                 summaryHTML += `
                 <tr style="background-color: rgba(46, 160, 67, 0.05);">
@@ -922,9 +918,7 @@
                 catTotals['cash'].val += displayCash;
                 catTotals['cash'].cost += displayCash;
 
-                let convertedStr = globalCurrency === 'USD' 
-                    ? `≈ NT$ ${formatMoney(cashTWD, 2, 'TWD').replace('NT$', '')}` 
-                    : `≈ $ ${formatMoney(cashTWD/currentExchangeRate, 2, 'USD').replace('$', '')}`;
+                let convertedStr = `≈ $ ${formatMoney(cashTWD/currentExchangeRate, 2, 'USD').replace('$', '')}`;
 
                 summaryHTML += `
                 <tr style="background-color: rgba(63, 185, 80, 0.05);">
