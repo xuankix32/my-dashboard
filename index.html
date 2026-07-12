@@ -56,9 +56,79 @@
         .autocomplete-item:last-child { border-bottom: none; }
         .autocomplete-highlight { color: #58a6ff; font-weight: bold; }        
         @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } .tabs { overflow-x: auto; white-space: nowrap; } }
+        }
+
+        #login-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background-color: rgba(13, 17, 23, 0.95);
+            backdrop-filter: blur(5px);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .login-box {
+            background-color: #161b22;
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid #30363d;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            text-align: center;
+            width: 300px;
+            box-sizing: border-box;
+        }
+        .login-box h2 {
+            margin-top: 0;
+            color: #e0e0e0;
+        }
+        .login-box input {
+            width: 100%;
+            padding: 10px;
+            margin: 15px 0;
+            background-color: #0d1117;
+            border: 1px solid #30363d;
+            color: #e0e0e0;
+            border-radius: 6px;
+            box-sizing: border-box;
+            outline: none;
+        }
+        .login-box input:focus {
+            border-color: #58a6ff;
+        }
+        .login-box button {
+            width: 100%;
+            padding: 10px;
+            background-color: #238636;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .login-box button:hover {
+            background-color: #2ea043;
+        }
+        #login-error {
+            color: #ff7b72;
+            font-size: 13px;
+            margin-top: 10px;
+            display: none;
+        }
     </style>
 </head>
 <body>
+
+    <div id="login-overlay">
+        <div class="login-box">
+            <h2>🔒 Dashboard Login</h2>
+            <input type="password" id="pwd-input" placeholder="請輸入密碼" onkeypress="if(event.key === 'Enter') attemptLogin()">
+            <button onclick="attemptLogin()">解鎖 (Unlock)</button>
+            <div id="login-error">密碼錯誤，請重新輸入。</div>
+        </div>
+    </div>
 
     <h1 style="text-align: center; margin-bottom: 20px; font-weight: 800; letter-spacing: 1px;">🚀 戰情室 Dashboard</h1>
     
@@ -220,6 +290,25 @@
         let tabCurrencies = JSON.parse(localStorage.getItem('wealthCurrencies')) || { 'tw_stock': 'TWD', 'us_stock': 'USD', 'crypto': 'USD', 'all': 'USD' };    
         let pieChartMode = localStorage.getItem('wealthPieMode') || 'detail'; 
         let showCashInValueChart = localStorage.getItem('wealthShowCashInVal') ? JSON.parse(localStorage.getItem('wealthShowCashInVal')) : true;
+        let wealthPwd = localStorage.getItem('wealthPwd') || '';
+
+        function attemptLogin() {
+            const input = document.getElementById('pwd-input').value;
+            if(input) {
+                wealthPwd = input;
+                localStorage.setItem('wealthPwd', wealthPwd);
+                document.getElementById('login-overlay').style.display = 'none';
+                document.getElementById('login-error').style.display = 'none';
+                syncWithCloud();
+            }
+        }
+
+        function showLogin(showError = false) {
+            document.getElementById('login-overlay').style.display = 'flex';
+            document.getElementById('login-error').style.display = showError ? 'block' : 'none';
+            localStorage.removeItem('wealthPwd');
+            wealthPwd = '';
+        }
 
         // 【新增】美金的專屬顏色
         const predefinedColors = { 'BTC': '#f7931a', 'ETH': '#627eea', 'ADA': '#0033ad', '2330': '#d32f2f', '0050': '#1976d2', '現金': '#3fb950', 'USDT/USDC': '#26a17b', '美金': '#2ea043' };
@@ -436,30 +525,35 @@
         async function updateCashValue(val) {
             cashTWD = parseFloat(val) || 0;
             renderDashboardUI();
-            try { await fetch(API_URL, { method: 'POST', body: JSON.stringify({ type: 'updateCash', value: cashTWD }) }); } catch(e) {}
+            try { await fetch(API_URL, { method: 'POST', body: JSON.stringify({ pwd: wealthPwd, type: 'updateCash', value: cashTWD }) }); } catch(e) {}
         }
 
         async function updateStableCoinValue(val) {
             stableCoinUSD = parseFloat(val) || 0;
             renderDashboardUI();
-            try { await fetch(API_URL, { method: 'POST', body: JSON.stringify({ type: 'updateStableCoin', value: stableCoinUSD }) }); } catch(e) {}
+            try { await fetch(API_URL, { method: 'POST', body: JSON.stringify({ pwd: wealthPwd, type: 'updateStableCoin', value: stableCoinUSD }) }); } catch(e) {}
         }
 
-        // 【新增】更新美金現金函數
         async function updateCashUSDValue(val) {
             cashUSD = parseFloat(val) || 0;
             renderDashboardUI();
-            try { await fetch(API_URL, { method: 'POST', body: JSON.stringify({ type: 'updateCashUSD', value: cashUSD }) }); } catch(e) {}
+            try { await fetch(API_URL, { method: 'POST', body: JSON.stringify({ pwd: wealthPwd, type: 'updateCashUSD', value: cashUSD }) }); } catch(e) {}
         }
 
         async function syncWithCloud() {
+            if (!wealthPwd) { showLogin(); return; }
             try {
                 setStatus('⏳ 正在與 Google 雲端同步...', 'loading');
-                const response = await fetch(API_URL);
+                const response = await fetch(`${API_URL}?pwd=${encodeURIComponent(wealthPwd)}`);
                 
                 let text = await response.text();
                 let data;
                 try { data = JSON.parse(text); } catch(e) { throw new Error("伺服器未回傳 JSON"); }
+                if (data.error === "Unauthorized") {
+                    showLogin(true);
+                    setStatus('密碼錯誤', 'error');
+                    return;
+                }
                 if (data.status === "error") throw new Error(data.message);
 
                 let localTrades = JSON.parse(localStorage.getItem('wealthTrades')) || [];
@@ -470,7 +564,7 @@
                 
                 cashTWD = data.cashTWD || 0; 
                 stableCoinUSD = data.stableCoinUSD || 0; 
-                cashUSD = data.cashUSD || 0; // 【新增】讀取美金現金
+                cashUSD = data.cashUSD || 0;
 
                 snapshots = data.snapshots || [];
 
@@ -499,7 +593,7 @@
             localStorage.setItem('wealthTrades', JSON.stringify(trades));
             if(!isSilent) setStatus('⏳ 正在儲存至 Google 雲端...', 'loading');
             try {
-                await fetch(API_URL, { method: 'POST', body: JSON.stringify(trades) });
+                await fetch(API_URL, { method: 'POST', body: JSON.stringify({ pwd: wealthPwd, type: 'updateTrades', trades: trades }) });
                 if(!isSilent) setStatus('🟢 成功儲存至 Google 雲端！', 'success');
             } catch (error) { setStatus('🔴 雲端儲存失敗，已暫存本機', 'error'); }
         }
@@ -524,7 +618,7 @@
                 toggleDeleteButton();
                 setStatus('⏳ 正在將新標的寫入 Google 雲端...', 'loading');
                 try {
-                    await fetch(API_URL, { method: 'POST', body: JSON.stringify({ type: 'addTicker', category: currentTab, ticker: newTicker }) });
+                    await fetch(API_URL, { method: 'POST', body: JSON.stringify({ pwd: wealthPwd, type: 'addTicker', category: currentTab, ticker: newTicker }) });
                     setStatus('🟢 新標的已成功加入資料庫並開始抓取報價！', 'success');
                     syncWithCloud(); 
                 } catch(e) { setStatus('🔴 寫入新標的失敗，請檢查網路狀態', 'error'); }
@@ -552,7 +646,7 @@
             updateCoinDropdown(currentTab);
             setStatus(`⏳ 正在從雲端移除 ${tickerToDelete} 的報價追蹤...`, 'loading');
             try {
-                await fetch(API_URL, { method: 'POST', body: JSON.stringify({ type: 'removeTicker', ticker: tickerToDelete }) });
+                await fetch(API_URL, { method: 'POST', body: JSON.stringify({ pwd: wealthPwd, type: 'removeTicker', ticker: tickerToDelete }) });
                 setStatus('🟢 標的已成功移除！', 'success');
             } catch(e) { setStatus('🔴 移除標的失敗，請檢查網路', 'error'); }
         }
@@ -772,7 +866,6 @@
                 return a.localeCompare(b); 
             });
 
-            // ===== 1. 印出各別資產 =====
             for (let coin of sortedPortfolioKeys) {
                 if (tabHideZero[currentTab] && portfolio[coin].amt <= 0) {
                     if (globalCurrency === 'USD' && portfolio[coin].category === 'tw_stock') {
@@ -854,7 +947,6 @@
                 }
             }
 
-            // ===== 2. 印出穩定幣 (嚴格限制在 crypto 或 all 頁籤) =====
             if (currentTab === 'crypto' || currentTab === 'all') {
                 let displayStable = globalCurrency === 'USD' ? stableCoinUSD : stableCoinUSD * currentExchangeRate;
                 
@@ -892,7 +984,6 @@
                 </tr>`;
             }
 
-            // ===== 3. 印出美股美金現金 (嚴格限制在 us_stock 或 all 頁籤) =====
             if (currentTab === 'us_stock' || currentTab === 'all') {
                 let displayCashUSD = globalCurrency === 'USD' ? cashUSD : (cashUSD * currentExchangeRate);
                 
@@ -930,7 +1021,6 @@
                 </tr>`;
             }
 
-            // ===== 4. 印出台幣現金 (嚴格限制只有在 all 頁籤) =====
             if (currentTab === 'all') {
                 let displayCash = globalCurrency === 'USD' ? (cashTWD / currentExchangeRate) : cashTWD;
                 
@@ -1284,7 +1374,14 @@
             });
         }
 
-        syncWithCloud();
+        window.onload = () => {
+            if (!wealthPwd) {
+                showLogin();
+            } else {
+                document.getElementById('login-overlay').style.display = 'none';
+                syncWithCloud();
+            }
+        };
         setInterval(syncWithCloud, 60000); 
 
     </script>
