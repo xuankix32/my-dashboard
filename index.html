@@ -1395,7 +1395,7 @@
                         hidden: hiddenState[`加密貨幣 (${globalCurrency})`] === true
                     },
                     {
-                        label: `累積投入本金 (${globalCurrency})`,
+                        label: `累積投入本金 (含現金, ${globalCurrency})`,
                         data: sortedSnaps.map(s => globalCurrency === 'USD' ? s.hist_cost_usd : s.hist_cost_twd),
                         borderColor: '#ffffff',
                         borderDash: [5, 5],
@@ -1406,7 +1406,7 @@
                         pointHoverRadius: 4,
                         stack: 'Stack 1',
                         order: -1,
-                        hidden: hiddenState[`累積投入本金 (${globalCurrency})`] === true
+                        hidden: hiddenState[`累積投入本金 (含現金, ${globalCurrency})`] === true
                     },
                     {
                         label: `總資產 (${globalCurrency})`,
