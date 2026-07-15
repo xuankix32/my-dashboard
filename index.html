@@ -1395,12 +1395,8 @@
                         hidden: hiddenState[`加密貨幣 (${globalCurrency})`] === true
                     },
                     {
-                        label: `累積投資本金 (不含現金, ${globalCurrency})`,
-                        data: sortedSnaps.map(s => {
-                            let totalInvestedCostUSD = s.hist_cost_crypto_usd + s.hist_cost_tw_stock_usd + s.hist_cost_us_stock_usd;
-                            let totalInvestedCostTWD = s.hist_cost_crypto_twd + s.hist_cost_tw_stock_twd + s.hist_cost_us_stock_twd;
-                            return globalCurrency === 'USD' ? totalInvestedCostUSD : totalInvestedCostTWD;
-                        }),
+                        label: `累積投入本金 (${globalCurrency})`,
+                        data: sortedSnaps.map(s => globalCurrency === 'USD' ? s.hist_cost_usd : s.hist_cost_twd),
                         borderColor: '#ffffff',
                         borderDash: [5, 5],
                         borderWidth: 2,
@@ -1410,7 +1406,7 @@
                         pointHoverRadius: 4,
                         stack: 'Stack 1',
                         order: -1,
-                        hidden: hiddenState[`累積投資本金 (不含現金, ${globalCurrency})`] === true
+                        hidden: hiddenState[`累積投入本金 (${globalCurrency})`] === true
                     },
                     {
                         label: `總資產 (${globalCurrency})`,
