@@ -1319,15 +1319,15 @@
                 }
 
                 let impliedCashUSD = s.total_usd - s.crypto_usd - s.tw_stock_usd - s.us_stock_usd;
-                s.hist_cost_usd = histAssetCostUSD + impliedCashUSD;
+                s.hist_cost_usd = histAssetCostUSD + impliedCashUSD + stableCoinUSD + cashUSD;
                 s.hist_cost_twd = s.hist_cost_usd * histExRate;
                 
-                s.hist_cost_crypto_usd = histCostCat.crypto_usd;
-                s.hist_cost_crypto_twd = histCostCat.crypto_usd * histExRate;
+                s.hist_cost_crypto_usd = histCostCat.crypto_usd + stableCoinUSD;
+                s.hist_cost_crypto_twd = (histCostCat.crypto_usd + stableCoinUSD) * histExRate;
                 s.hist_cost_tw_stock_twd = histCostCat.tw_stock_twd;
                 s.hist_cost_tw_stock_usd = histCostCat.tw_stock_twd / histExRate;
-                s.hist_cost_us_stock_usd = histCostCat.us_stock_usd;
-                s.hist_cost_us_stock_twd = histCostCat.us_stock_usd * histExRate;
+                s.hist_cost_us_stock_usd = histCostCat.us_stock_usd + cashUSD;
+                s.hist_cost_us_stock_twd = (histCostCat.us_stock_usd + cashUSD) * histExRate;
             });
 
             let hiddenState = JSON.parse(localStorage.getItem('wealthTrendLegend')) || {};
