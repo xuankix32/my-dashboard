@@ -1834,9 +1834,11 @@
                     if (modelsData.error) throw new Error(modelsData.error.message);
                     if (modelsData.models) {
                         const valid = modelsData.models.filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'));
-                        const flash = valid.find(m => m.name.includes('flash'));
-                        const pro = valid.find(m => m.name.includes('pro'));
-                        const selected = flash || pro || valid[0];
+                        const flashModels = valid.filter(m => m.name.includes('flash'));
+                        const flash = flashModels.find(m => m.name.includes('latest')) || flashModels[flashModels.length - 1];
+                        const proModels = valid.filter(m => m.name.includes('pro'));
+                        const pro = proModels.find(m => m.name.includes('latest')) || proModels[proModels.length - 1];
+                        const selected = flash || pro || valid[valid.length - 1];
                         if (selected) {
                             cachedAiModel = selected.name.replace('models/', '');
                             console.log('Auto-selected AI model:', cachedAiModel);
@@ -1918,9 +1920,12 @@
                     if (modelsData.error) throw new Error(modelsData.error.message);
                     if (modelsData.models) {
                         const valid = modelsData.models.filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'));
-                        const flash = valid.find(m => m.name.includes('flash'));
-                        const pro = valid.find(m => m.name.includes('pro'));
-                        cachedAiModel = (flash || pro || valid[0]).name.replace('models/', '');
+                        const flashModels = valid.filter(m => m.name.includes('flash'));
+                        const flash = flashModels.find(m => m.name.includes('latest')) || flashModels[flashModels.length - 1];
+                        const proModels = valid.filter(m => m.name.includes('pro'));
+                        const pro = proModels.find(m => m.name.includes('latest')) || proModels[proModels.length - 1];
+                        const selected = flash || pro || valid[valid.length - 1];
+                        cachedAiModel = selected ? selected.name.replace('models/', '') : 'gemini-1.5-flash-latest';
                     } else {
                         cachedAiModel = 'gemini-1.5-flash-latest';
                     }
