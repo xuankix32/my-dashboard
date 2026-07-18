@@ -211,8 +211,8 @@
                     </label>
                 </div>
                 <div style="width: 100%; max-width: 250px; margin: 0 auto; position: relative;">
-                    <canvas id="portfolioChart"></canvas>
-                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; width: 80%;">
+                    <canvas id="portfolioChart" style="position: relative; z-index: 2;"></canvas>
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; width: 80%; z-index: 1;">
                         <div style="font-size: 11px; color: #8b949e; margin-bottom: 2px;">總現值</div>
                         <div style="font-size: 15px; font-weight: bold; color: #e0e0e0; margin-bottom: 2px;" id="portfolio-center-main">-</div>
                         <div style="font-size: 11px; color: #8b949e;" id="portfolio-center-alt">-</div>
@@ -224,8 +224,8 @@
             <div style="width: 100%;">
                 <h3 style="margin: 0 0 5px 0; font-size: 16px; color: #e0e0e0;">💰 投入資金佔比</h3>
                 <div style="width: 100%; max-width: 250px; margin: 0 auto; position: relative;">
-                    <canvas id="costChart"></canvas>
-                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; width: 80%;">
+                    <canvas id="costChart" style="position: relative; z-index: 2;"></canvas>
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; width: 80%; z-index: 1;">
                         <div style="font-size: 11px; color: #8b949e; margin-bottom: 2px;">總成本</div>
                         <div style="font-size: 15px; font-weight: bold; color: #e0e0e0; margin-bottom: 2px;" id="cost-center-main">-</div>
                         <div style="font-size: 11px; color: #8b949e;" id="cost-center-alt">-</div>
