@@ -7,6 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
+        @keyframes spin { 100% { transform: rotate(360deg); } }
         body { font-family: 'Segoe UI', -apple-system, sans-serif; background-color: #0d1117; color: #c9d1d9; padding: 20px; max-width: 1200px; margin: 0 auto; }
         .grid { display: grid; grid-template-columns: 3fr 1fr; gap: 20px; align-items: start; }
         .card { background-color: #161b22; padding: 25px; border-radius: 12px; border: 1px solid #30363d; box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
@@ -240,10 +241,31 @@
     </div>
 
     <div id="simulator-container" style="display: none;">
+        
+        <!-- AI 設定區塊 -->
+        <div id="ai-settings-panel" class="card" style="margin-bottom: 25px; display: none; background: #0d1117; border: 1px solid #3fb950;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h4 style="margin: 0; color: #3fb950;">🤖 AI 預測設定 (Gemini API)</h4>
+                <button onclick="toggleAiSettings()" style="background: transparent; border: none; color: #8b949e; cursor: pointer;">✖</button>
+            </div>
+            <div style="font-size: 13px; color: #8b949e; margin-bottom: 15px;">
+                為了保護您的安全，我們不會將金鑰存到雲端。請將您申請的 Gemini API Key 貼在此處，金鑰將只保存在您當前的瀏覽器中。<br>
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #58a6ff; text-decoration: none;">👉 點擊此處免費申請 Google Gemini API 金鑰</a>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <input type="password" id="gemini-api-key" placeholder="貼上您的 API Key..." style="flex: 1; padding: 8px 12px; border-radius: 6px; border: 1px solid #30363d; background: #21262d; color: #c9d1d9; outline: none;">
+                <button onclick="saveAiKey()" style="padding: 8px 16px; background: #2ea043; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">💾 儲存</button>
+            </div>
+        </div>
+
         <div class="card" style="margin-bottom: 25px;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 20px; border-bottom: 1px solid #30363d;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 20px; border-bottom: 1px solid #30363d; flex-wrap: wrap; gap: 15px;">
                 <div>
-                    <h3 style="margin: 0 0 10px 0;">🔮 財富模擬器 (What-If Simulator)</h3>
+                    <h3 style="margin: 0 0 10px 0; display: flex; align-items: center; gap: 10px;">
+                        🔮 財富模擬器 (What-If Simulator)
+                        <button onclick="askAIForAll()" id="btn-ask-all" style="font-size: 12px; padding: 4px 10px; background: linear-gradient(45deg, #8a2387, #e94057, #f27121); color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">🚀 一鍵 AI 全部預測</button>
+                        <button onclick="toggleAiSettings()" style="font-size: 14px; background: transparent; border: none; cursor: pointer; padding: 0;" title="AI 設定">⚙️</button>
+                    </h3>
                     <div style="font-size: 13px; color: #8b949e;">修改下方資產的「預期目標價」，立刻試算未來的財富變化！</div>
                 </div>
                 <div class="summary-stats">
@@ -1691,15 +1713,17 @@
                 let qty = holdings[coin].qty;
                 let cat = holdings[coin].category;
                 let currentPrice = priceCache[coin] || 0;
-                let displayValue = savedInputs[coin] !== undefined ? savedInputs[coin] : currentPrice;
+                let safeCurrentPrice = Math.round(currentPrice * 1000000) / 1000000;
+                let displayValue = savedInputs[coin] !== undefined ? savedInputs[coin] : safeCurrentPrice;
                 
                 let tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td style="font-weight: bold; color: #c9d1d9;">${coin} <span class="badge ${cat}-badge">${categoryNames[cat]}</span></td>
                     <td>${qty.toLocaleString(undefined, {maximumFractionDigits: 6})}</td>
                     <td style="color: #8b949e;">${currentPrice.toLocaleString(undefined, {maximumFractionDigits: 4})}</td>
-                    <td>
+                    <td style="display: flex; gap: 5px; align-items: center; border-bottom: none;">
                         <input type="number" class="sim-target-price" data-coin="${coin}" data-qty="${qty}" data-cat="${cat}" value="${displayValue}" step="any" oninput="updateSimulatorTotals()" style="width: 120px; padding: 6px; border-radius: 4px; border: 1px solid #58a6ff; background: #0d1117; color: #c9d1d9; outline: none; font-weight: bold;">
+                        <button onclick="askAI(this, '${coin}', '${cat}', ${currentPrice})" class="ai-btn" style="background: transparent; border: none; cursor: pointer; font-size: 16px; padding: 4px; transition: transform 0.2s;" title="讓 AI 預測目標價">✨</button>
                     </td>
                     <td class="sim-row-value" style="font-weight: bold;">$0.00</td>
                     <td class="sim-row-profit" style="font-weight: bold;">$0.00</td>
@@ -1768,7 +1792,116 @@
             document.getElementById('sim-diff-value').innerHTML = `<span style="color: ${diffColor};">${diffSign}${prefix}${Math.abs(diffTotal).toLocaleString(undefined, {maximumFractionDigits: 2})}</span>`;
         }
 
+        function toggleAiSettings() {
+            const panel = document.getElementById('ai-settings-panel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function saveAiKey() {
+            const key = document.getElementById('gemini-api-key').value.trim();
+            if (key) {
+                localStorage.setItem('geminiApiKey', key);
+                alert('💾 API 金鑰已成功儲存在您的瀏覽器中！');
+                toggleAiSettings();
+            } else {
+                alert('請輸入有效的 API Key');
+            }
+        }
+
+        async function askAI(btn, coin, cat, currentPrice) {
+            const apiKey = localStorage.getItem('geminiApiKey');
+            if (!apiKey) {
+                alert('請先點擊上方的 ⚙️ 圖示設定您的 Gemini API Key！');
+                toggleAiSettings();
+                return;
+            }
+
+            // UI 狀態切換
+            const originalIcon = btn.innerText;
+            btn.innerText = '⏳';
+            btn.style.animation = 'spin 1s linear infinite';
+            btn.disabled = true;
+
+            const prompt = `你是一位專業的華爾街頂級分析師。用戶目前持有資產 ${coin}（類別：${categoryNames[cat] || cat}），目前市價為 ${currentPrice}。請綜合目前的市場共識、頂級機構報告，給出該資產「未來 12 個月內合理且偏樂觀的目標價」。\n\n重要規則：請「只回傳一個純數字」，不要有任何多餘的文字、換行、貨幣符號或逗號（例如回傳 150.5）。如果不確定，請回傳當前市價 ${currentPrice}。`;
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: { temperature: 0.2, maxOutputTokens: 10 }
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.error) {
+                    throw new Error(data.error.message);
+                }
+                
+                let predictedPriceStr = data.candidates[0].content.parts[0].text.trim();
+                let predictedPrice = parseFloat(predictedPriceStr.replace(/[^0-9.]/g, ''));
+                
+                if (!isNaN(predictedPrice)) {
+                    // 將預測價格填入對應的輸入框
+                    const input = btn.previousElementSibling;
+                    input.value = predictedPrice;
+                    updateSimulatorTotals();
+                    
+                    btn.innerText = '✅';
+                    setTimeout(() => { btn.innerText = originalIcon; }, 2000);
+                } else {
+                    throw new Error('AI 回傳的格式不正確');
+                }
+            } catch (error) {
+                console.error('AI 預測失敗:', error);
+                alert(`AI 預測失敗: ${error.message}`);
+                btn.innerText = '❌';
+                setTimeout(() => { btn.innerText = originalIcon; }, 2000);
+            } finally {
+                btn.style.animation = '';
+                btn.disabled = false;
+            }
+        }
+
+        async function askAIForAll() {
+            const apiKey = localStorage.getItem('geminiApiKey');
+            if (!apiKey) {
+                alert('請先點擊上方的 ⚙️ 圖示設定您的 Gemini API Key！');
+                toggleAiSettings();
+                return;
+            }
+
+            const mainBtn = document.getElementById('btn-ask-all');
+            mainBtn.innerText = '⏳ 正在為所有資產算命中...';
+            mainBtn.disabled = true;
+
+            const allAiBtns = document.querySelectorAll('.ai-btn');
+            for (let i = 0; i < allAiBtns.length; i++) {
+                const btn = allAiBtns[i];
+                const input = btn.previousElementSibling;
+                const coin = input.getAttribute('data-coin');
+                const cat = input.getAttribute('data-cat');
+                const currentPrice = input.getAttribute('value');
+                
+                await askAI(btn, coin, cat, currentPrice);
+                
+                // 暫停 1 秒避免觸發 API 頻率限制 (Rate Limit)
+                if (i < allAiBtns.length - 1) {
+                    await new Promise(r => setTimeout(r, 1000));
+                }
+            }
+
+            mainBtn.innerText = '✅ 全庫預測完成！';
+            setTimeout(() => { mainBtn.innerText = '🚀 一鍵 AI 全部預測'; mainBtn.disabled = false; }, 3000);
+        }
+
         window.onload = () => {
+            const savedKey = localStorage.getItem('geminiApiKey');
+            if (savedKey) {
+                document.getElementById('gemini-api-key').value = savedKey;
+            }
+
             if (!wealthPwd) {
                 showLogin();
             } else {
