@@ -1885,6 +1885,7 @@
                 alert(`AI 預測失敗: ${error.message}`);
                 btn.innerText = '❌';
                 setTimeout(() => { btn.innerText = originalIcon; }, 2000);
+                throw error; // 將錯誤往上拋給呼叫者 (例如 askAIForAll)
             } finally {
                 btn.style.animation = '';
                 btn.disabled = false;
@@ -1900,22 +1901,33 @@
             }
 
             const mainBtn = document.getElementById('btn-ask-all');
-            mainBtn.innerText = '⏳ 正在為所有資產算命中...';
             mainBtn.disabled = true;
 
             const allAiBtns = document.querySelectorAll('.ai-btn');
             for (let i = 0; i < allAiBtns.length; i++) {
+                mainBtn.innerText = `⏳ 算命中 (${i + 1}/${allAiBtns.length})...`;
                 const btn = allAiBtns[i];
+                
+                // 如果已經填寫過或者失敗，還是強制重新預測
                 const input = btn.previousElementSibling;
                 const coin = input.getAttribute('data-coin');
                 const cat = input.getAttribute('data-cat');
                 const currentPrice = input.getAttribute('value');
                 
-                await askAI(btn, coin, cat, currentPrice);
+                try {
+                    await askAI(btn, coin, cat, currentPrice);
+                } catch(e) {
+                    console.log('Batch AI error:', e);
+                    // askAI 裡面已經有 alert 了，這裡只要中斷批次迴圈就好
+                    if(e.message && e.message.includes('quota')) {
+                        break; 
+                    }
+                }
                 
-                // 暫停 1 秒避免觸發 API 頻率限制 (Rate Limit)
+                // Gemini 免費版限制每分鐘 15 次請求 (大約每 4 秒 1 次)
+                // 為了安全起見，每次暫停 4.5 秒
                 if (i < allAiBtns.length - 1) {
-                    await new Promise(r => setTimeout(r, 1000));
+                    await new Promise(r => setTimeout(r, 4500));
                 }
             }
 
