@@ -1669,27 +1669,31 @@
             
             let holdings = {};
             trades.forEach(t => {
-                if(t.ticker === '現金' || t.ticker === '美金' || t.ticker === 'USDT/USDC' || t.ticker === '現金與穩定幣') return;
-                if (!holdings[t.ticker]) {
-                    holdings[t.ticker] = { qty: 0, category: t.category };
+                if(t.coin === '現金' || t.coin === '美金' || t.coin === 'USDT/USDC' || t.coin === '現金與穩定幣') return;
+                if (!holdings[t.coin]) {
+                    holdings[t.coin] = { qty: 0, category: t.category };
                 }
-                holdings[t.ticker].qty += parseFloat(t.amount);
+                if (t.type === 'buy') {
+                    holdings[t.coin].qty += parseFloat(t.amount);
+                } else {
+                    holdings[t.coin].qty -= parseFloat(t.amount);
+                }
             });
             
-            Object.keys(holdings).forEach(ticker => {
-                if (holdings[ticker].qty <= 0.000001) return; 
+            Object.keys(holdings).forEach(coin => {
+                if (holdings[coin].qty <= 0.000001) return; 
                 
-                let qty = holdings[ticker].qty;
-                let cat = holdings[ticker].category;
-                let currentPrice = priceCache[ticker] || 0;
+                let qty = holdings[coin].qty;
+                let cat = holdings[coin].category;
+                let currentPrice = priceCache[coin] || 0;
                 
                 let tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td style="font-weight: bold; color: #c9d1d9;">${ticker} <span class="badge ${cat}-badge">${categoryNames[cat]}</span></td>
+                    <td style="font-weight: bold; color: #c9d1d9;">${coin} <span class="badge ${cat}-badge">${categoryNames[cat]}</span></td>
                     <td>${qty.toLocaleString(undefined, {maximumFractionDigits: 6})}</td>
                     <td style="color: #8b949e;">${currentPrice.toLocaleString(undefined, {maximumFractionDigits: 4})}</td>
                     <td>
-                        <input type="number" class="sim-target-price" data-ticker="${ticker}" data-qty="${qty}" data-cat="${cat}" value="${currentPrice}" step="any" oninput="updateSimulatorTotals()" style="width: 120px; padding: 6px; border-radius: 4px; border: 1px solid #58a6ff; background: #0d1117; color: #c9d1d9; outline: none; font-weight: bold;">
+                        <input type="number" class="sim-target-price" data-coin="${coin}" data-qty="${qty}" data-cat="${cat}" value="${currentPrice}" step="any" oninput="updateSimulatorTotals()" style="width: 120px; padding: 6px; border-radius: 4px; border: 1px solid #58a6ff; background: #0d1117; color: #c9d1d9; outline: none; font-weight: bold;">
                     </td>
                     <td class="sim-row-value" style="font-weight: bold;">$0.00</td>
                     <td class="sim-row-profit" style="font-weight: bold;">$0.00</td>
@@ -1704,12 +1708,7 @@
             let simTotal = 0;
             let currentRealTotal = 0;
             
-            let cashTWD = 0, cashUSD = 0;
-            trades.forEach(t => {
-                if (t.ticker === '現金') cashTWD += parseFloat(t.amount);
-                if (t.ticker === '美金' || t.ticker === 'USDT/USDC') cashUSD += parseFloat(t.amount);
-            });
-            let cashTotalInPref = globalCurrency === 'USD' ? (cashTWD / currentExchangeRate + cashUSD) : (cashTWD + cashUSD * currentExchangeRate);
+            let cashTotalInPref = globalCurrency === 'USD' ? (cashTWD / currentExchangeRate + cashUSD + stableCoinUSD) : (cashTWD + (cashUSD + stableCoinUSD) * currentExchangeRate);
             
             simTotal += cashTotalInPref;
             currentRealTotal += cashTotalInPref;
@@ -1718,7 +1717,7 @@
                 let qty = parseFloat(input.getAttribute('data-qty'));
                 let cat = input.getAttribute('data-cat');
                 let targetPrice = parseFloat(input.value) || 0;
-                let realPrice = priceCache[input.getAttribute('data-ticker')] || 0;
+                let realPrice = priceCache[input.getAttribute('data-coin')] || 0;
                 
                 let targetValue = qty * targetPrice;
                 let realValue = qty * realPrice;
