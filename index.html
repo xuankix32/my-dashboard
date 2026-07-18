@@ -137,6 +137,7 @@
         <button class="tab-btn" onclick="switchTab('us_stock')">🇺🇸 美股</button>
         <button class="tab-btn active" onclick="switchTab('crypto')">🪙 加密貨幣</button>
         <button class="tab-btn" onclick="switchTab('all')">🌐 綜合分析</button>
+        <button class="tab-btn" onclick="switchTab('simulator')">🔮 財富模擬器</button>
     </div>
     
     <div id="dashboard-content" style="transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out; opacity: 1; transform: translateY(0);">
@@ -165,7 +166,7 @@
         </div>
     </div>
 
-    <div class="grid">
+    <div id="main-dashboard-grid" class="grid">
         <div class="card" style="min-width: 0;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <h3 style="margin-top:0;" id="summary-title">📊 資產與獲利明細</h3>
@@ -238,7 +239,41 @@
         </div>
     </div>
 
-    <div class="card" style="margin-top: 25px; display: none;" id="trend-card">
+    <div id="simulator-container" style="display: none;">
+        <div class="card" style="margin-bottom: 25px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 20px; border-bottom: 1px solid #30363d;">
+                <div>
+                    <h3 style="margin: 0 0 10px 0;">🔮 財富模擬器 (What-If Simulator)</h3>
+                    <div style="font-size: 13px; color: #8b949e;">修改下方資產的「預期目標價」，立刻試算未來的財富變化！</div>
+                </div>
+                <div class="summary-stats">
+                    <h2>模擬總現值: <span id="sim-total-value" class="total-number" style="color: #58a6ff;">$0.00</span></h2>
+                    <h3>預期獲利差距: <span id="sim-diff-value" class="badge neutral-badge">$0.00</span></h3>
+                </div>
+            </div>
+            
+            <div style="width: 100%; overflow-x: auto; margin-top: 15px;">
+                <table style="width: 100%; min-width: 600px;">
+                    <thead>
+                        <tr>
+                            <th>資產標的</th>
+                            <th>當前持倉數量</th>
+                            <th>當前市價</th>
+                            <th>✨ 預期目標價</th>
+                            <th>模擬現值</th>
+                            <th>模擬獲利</th>
+                        </tr>
+                    </thead>
+                    <tbody id="simulator-body">
+                        <!-- 模擬列表 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="secondary-dashboard-content">
+        <div class="card" style="margin-top: 25px; display: none;" id="trend-card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
             <h3 style="margin: 0;">📈 總資產走勢 (Trend)</h3>
             <select id="trend-time-filter" onchange="updateTrendChart()" style="padding: 6px 10px; font-size: 13px; border-radius: 6px; border: 1px solid #30363d; background: #21262d; color: #c9d1d9; outline: none; cursor: pointer;">
@@ -277,6 +312,7 @@
                 <tbody id="history-body"></tbody>
             </table>
         </div>
+    </div>
     </div>
     </div>
 
@@ -536,6 +572,19 @@
             
             const trendCard = document.getElementById('trend-card');
             if(trendCard && snapshots.length > 0) trendCard.style.display = 'block';
+            
+            if (currentTab === 'simulator') {
+                document.getElementById('main-dashboard-grid').style.display = 'none';
+                document.getElementById('secondary-dashboard-content').style.display = 'none';
+                if(formCard) formCard.style.display = 'none';
+                document.getElementById('simulator-container').style.display = 'block';
+                renderSimulatorUI();
+                return;
+            } else {
+                document.getElementById('main-dashboard-grid').style.display = '';
+                document.getElementById('secondary-dashboard-content').style.display = 'block';
+                document.getElementById('simulator-container').style.display = 'none';
+            }
 
             if (currentTab === 'all') {
                 if(formCard) formCard.style.display = 'none';
@@ -551,7 +600,7 @@
             renderDashboardUI(); 
         }
 
-        const tabIds = ['tw_stock', 'us_stock', 'crypto', 'all'];
+        const tabIds = ['tw_stock', 'us_stock', 'crypto', 'all', 'simulator'];
         let isTabScrolling = false;
 
         document.getElementById('nav-tabs').addEventListener('wheel', (e) => {
@@ -1612,6 +1661,105 @@
                     }
                 }
             });
+        }
+
+        function renderSimulatorUI() {
+            const tbody = document.getElementById('simulator-body');
+            tbody.innerHTML = '';
+            
+            let holdings = {};
+            trades.forEach(t => {
+                if(t.ticker === '現金' || t.ticker === '美金' || t.ticker === 'USDT/USDC' || t.ticker === '現金與穩定幣') return;
+                if (!holdings[t.ticker]) {
+                    holdings[t.ticker] = { qty: 0, category: t.category };
+                }
+                holdings[t.ticker].qty += parseFloat(t.amount);
+            });
+            
+            Object.keys(holdings).forEach(ticker => {
+                if (holdings[ticker].qty <= 0.000001) return; 
+                
+                let qty = holdings[ticker].qty;
+                let cat = holdings[ticker].category;
+                let currentPrice = priceCache[ticker] || 0;
+                
+                let tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="font-weight: bold; color: #c9d1d9;">${ticker} <span class="badge ${cat}-badge">${categoryNames[cat]}</span></td>
+                    <td>${qty.toLocaleString(undefined, {maximumFractionDigits: 6})}</td>
+                    <td style="color: #8b949e;">${currentPrice.toLocaleString(undefined, {maximumFractionDigits: 4})}</td>
+                    <td>
+                        <input type="number" class="sim-target-price" data-ticker="${ticker}" data-qty="${qty}" data-cat="${cat}" value="${currentPrice}" step="any" oninput="updateSimulatorTotals()" style="width: 120px; padding: 6px; border-radius: 4px; border: 1px solid #58a6ff; background: #0d1117; color: #c9d1d9; outline: none; font-weight: bold;">
+                    </td>
+                    <td class="sim-row-value" style="font-weight: bold;">$0.00</td>
+                    <td class="sim-row-profit" style="font-weight: bold;">$0.00</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            updateSimulatorTotals();
+        }
+        
+        function updateSimulatorTotals() {
+            let simTotal = 0;
+            let currentRealTotal = 0;
+            
+            let cashTWD = 0, cashUSD = 0;
+            trades.forEach(t => {
+                if (t.ticker === '現金') cashTWD += parseFloat(t.amount);
+                if (t.ticker === '美金' || t.ticker === 'USDT/USDC') cashUSD += parseFloat(t.amount);
+            });
+            let cashTotalInPref = globalCurrency === 'USD' ? (cashTWD / currentExchangeRate + cashUSD) : (cashTWD + cashUSD * currentExchangeRate);
+            
+            simTotal += cashTotalInPref;
+            currentRealTotal += cashTotalInPref;
+            
+            document.querySelectorAll('.sim-target-price').forEach(input => {
+                let qty = parseFloat(input.getAttribute('data-qty'));
+                let cat = input.getAttribute('data-cat');
+                let targetPrice = parseFloat(input.value) || 0;
+                let realPrice = priceCache[input.getAttribute('data-ticker')] || 0;
+                
+                let targetValue = qty * targetPrice;
+                let realValue = qty * realPrice;
+                
+                let isUsdAsset = (cat === 'us_stock' || cat === 'crypto');
+                
+                let targetValuePref = targetValue;
+                let realValuePref = realValue;
+                
+                if (globalCurrency === 'TWD' && isUsdAsset) {
+                    targetValuePref = targetValue * currentExchangeRate;
+                    realValuePref = realValue * currentExchangeRate;
+                } else if (globalCurrency === 'USD' && !isUsdAsset) {
+                    targetValuePref = targetValue / currentExchangeRate;
+                    realValuePref = realValue / currentExchangeRate;
+                }
+                
+                simTotal += targetValuePref;
+                currentRealTotal += realValuePref;
+                
+                let rowTr = input.closest('tr');
+                let valTd = rowTr.querySelector('.sim-row-value');
+                let profitTd = rowTr.querySelector('.sim-row-profit');
+                
+                let nativePrefix = isUsdAsset ? '$' : 'NT$';
+                valTd.innerText = `${nativePrefix}${targetValue.toLocaleString(undefined, {maximumFractionDigits: 2})}`;
+                
+                let profit = targetValue - realValue;
+                let profitSign = profit >= 0 ? '+' : '';
+                let profitColor = profit >= 0 ? '#3fb950' : '#f85149';
+                let profitPct = realValue > 0 ? (profit / realValue * 100) : 0;
+                profitTd.innerHTML = `<span style="color: ${profitColor};">${profitSign}${nativePrefix}${Math.abs(profit).toLocaleString(undefined, {maximumFractionDigits: 2})} (${profitSign}${profitPct.toFixed(2)}%)</span>`;
+            });
+            
+            let diffTotal = simTotal - currentRealTotal;
+            let diffSign = diffTotal >= 0 ? '+' : '';
+            let diffColor = diffTotal >= 0 ? '#3fb950' : '#f85149';
+            let prefix = globalCurrency === 'USD' ? '$' : 'NT$';
+            
+            document.getElementById('sim-total-value').innerText = `${prefix}${simTotal.toLocaleString(undefined, {maximumFractionDigits: 2})}`;
+            document.getElementById('sim-diff-value').innerHTML = `<span style="color: ${diffColor};">${diffSign}${prefix}${Math.abs(diffTotal).toLocaleString(undefined, {maximumFractionDigits: 2})}</span>`;
         }
 
         window.onload = () => {
