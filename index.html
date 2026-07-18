@@ -1962,6 +1962,11 @@
                 const data = await response.json();
                 if (data.error) throw new Error(data.error.message);
 
+                if (!data.candidates || data.candidates.length === 0) {
+                    let blockReason = data.promptFeedback ? JSON.stringify(data.promptFeedback) : '未知原因';
+                    throw new Error(`AI 回應為空，可能被安全過濾器攔截。詳細: ${blockReason}\n回傳資料: ${JSON.stringify(data)}`);
+                }
+
                 let jsonText = data.candidates[0].content.parts[0].text.trim();
                 
                 // 清理可能殘留的 Markdown
