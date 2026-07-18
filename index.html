@@ -1882,10 +1882,16 @@
                 }
             } catch (error) {
                 console.error('AI 預測失敗:', error);
-                alert(`AI 預測失敗: ${error.message}`);
+                let errorMsg = error.message;
+                if (errorMsg.includes('Quota exceeded') || errorMsg.includes('quota')) {
+                    errorMsg = '您點擊太快了！已觸發 Google 免費版的「每分鐘限制」。請稍等 1 分鐘後再繼續操作。';
+                } else if (errorMsg.includes('API key not valid')) {
+                    errorMsg = 'API 金鑰無效，請點擊 ⚙️ 重新確認您的金鑰是否輸入正確。';
+                }
+                alert(`AI 預測失敗: ${errorMsg}`);
                 btn.innerText = '❌';
                 setTimeout(() => { btn.innerText = originalIcon; }, 2000);
-                throw error; // 將錯誤往上拋給呼叫者 (例如 askAIForAll)
+                throw new Error(errorMsg); // 將錯誤往上拋給呼叫者
             } finally {
                 btn.style.animation = '';
                 btn.disabled = false;
