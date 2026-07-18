@@ -139,6 +139,7 @@
         <button class="tab-btn" onclick="switchTab('all')">🌐 綜合分析</button>
     </div>
     
+    <div id="dashboard-content" style="transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out; opacity: 1; transform: translateY(0);">
     <div class="card" id="form-card" style="margin-bottom: 25px;">
         <h3 id="form-title" style="margin-top:0; margin-bottom: 20px;">➕ 新增交易紀錄</h3>
         
@@ -274,6 +275,7 @@
                 <tbody id="history-body"></tbody>
             </table>
         </div>
+    </div>
     </div>
 
     <script>
@@ -493,7 +495,25 @@
             renderDashboardUI();
         }
 
-        function switchTab(tabId) {
+        function switchTab(tabId, animate = true) {
+            if (tabId === currentTab) return;
+            
+            const content = document.getElementById('dashboard-content');
+            if (animate && content) {
+                content.style.opacity = '0';
+                content.style.transform = 'translateY(10px)';
+                
+                setTimeout(() => {
+                    executeTabSwitch(tabId);
+                    content.style.opacity = '1';
+                    content.style.transform = 'translateY(0)';
+                }, 150);
+            } else {
+                executeTabSwitch(tabId);
+            }
+        }
+
+        function executeTabSwitch(tabId) {
             currentTab = tabId;
             localStorage.setItem('wealthLastTab', tabId); 
 
@@ -529,8 +549,34 @@
             renderDashboardUI(); 
         }
 
+        const tabIds = ['tw_stock', 'us_stock', 'crypto', 'all'];
+        let isTabScrolling = false;
+
+        document.getElementById('nav-tabs').addEventListener('wheel', (e) => {
+            e.preventDefault(); 
+            if (isTabScrolling) return;
+            
+            let currentIndex = tabIds.indexOf(currentTab);
+            if (currentIndex === -1) currentIndex = 2; 
+            
+            if (e.deltaY > 0) {
+                currentIndex = (currentIndex + 1) % tabIds.length;
+            } else if (e.deltaY < 0) {
+                currentIndex = (currentIndex - 1 + tabIds.length) % tabIds.length;
+            } else {
+                return;
+            }
+            
+            isTabScrolling = true;
+            switchTab(tabIds[currentIndex]);
+            
+            setTimeout(() => {
+                isTabScrolling = false;
+            }, 350); 
+        }, { passive: false });
+
         let savedTab = localStorage.getItem('wealthLastTab') || 'crypto';
-        switchTab(savedTab);
+        switchTab(savedTab, false);
         updateCurrencyUI(); 
         document.getElementById('trade-date').value = formatInputDate();
 
