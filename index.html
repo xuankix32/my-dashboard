@@ -1664,6 +1664,11 @@
         }
 
         function renderSimulatorUI() {
+            let savedInputs = {};
+            document.querySelectorAll('.sim-target-price').forEach(input => {
+                savedInputs[input.getAttribute('data-coin')] = input.value;
+            });
+
             const tbody = document.getElementById('simulator-body');
             tbody.innerHTML = '';
             
@@ -1686,6 +1691,7 @@
                 let qty = holdings[coin].qty;
                 let cat = holdings[coin].category;
                 let currentPrice = priceCache[coin] || 0;
+                let displayValue = savedInputs[coin] !== undefined ? savedInputs[coin] : currentPrice;
                 
                 let tr = document.createElement('tr');
                 tr.innerHTML = `
@@ -1693,7 +1699,7 @@
                     <td>${qty.toLocaleString(undefined, {maximumFractionDigits: 6})}</td>
                     <td style="color: #8b949e;">${currentPrice.toLocaleString(undefined, {maximumFractionDigits: 4})}</td>
                     <td>
-                        <input type="number" class="sim-target-price" data-coin="${coin}" data-qty="${qty}" data-cat="${cat}" value="${currentPrice}" step="any" oninput="updateSimulatorTotals()" style="width: 120px; padding: 6px; border-radius: 4px; border: 1px solid #58a6ff; background: #0d1117; color: #c9d1d9; outline: none; font-weight: bold;">
+                        <input type="number" class="sim-target-price" data-coin="${coin}" data-qty="${qty}" data-cat="${cat}" value="${displayValue}" step="any" oninput="updateSimulatorTotals()" style="width: 120px; padding: 6px; border-radius: 4px; border: 1px solid #58a6ff; background: #0d1117; color: #c9d1d9; outline: none; font-weight: bold;">
                     </td>
                     <td class="sim-row-value" style="font-weight: bold;">$0.00</td>
                     <td class="sim-row-profit" style="font-weight: bold;">$0.00</td>
