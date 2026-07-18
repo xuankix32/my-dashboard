@@ -689,12 +689,12 @@
                 }
                 
                 setStatus('🟢 雲端資料庫同步完成', 'success');
-                renderDashboardUI();
+                executeTabSwitch(currentTab);
             } catch (error) {
                 console.error(error);
                 setStatus(`🔴 連線異常: ${error.message || '未知錯誤'}`, 'error');
                 trades = JSON.parse(localStorage.getItem('wealthTrades')) || [];
-                renderDashboardUI();
+                executeTabSwitch(currentTab);
             }
         }
 
@@ -1708,6 +1708,7 @@
             let simTotal = 0;
             let currentRealTotal = 0;
             
+            let globalCurrency = tabCurrencies[currentTab] || 'TWD';
             let cashTotalInPref = globalCurrency === 'USD' ? (cashTWD / currentExchangeRate + cashUSD + stableCoinUSD) : (cashTWD + (cashUSD + stableCoinUSD) * currentExchangeRate);
             
             simTotal += cashTotalInPref;
