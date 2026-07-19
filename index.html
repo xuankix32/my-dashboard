@@ -1695,7 +1695,7 @@
                 let cat = holdings[coin].category;
                 let currentPrice = priceCache[coin] || 0;
                 
-                let precision = (coin === 'NIGHT') ? 5 : ((coin === 'BTC' || coin === 'ETH' || cat === 'us_stock') ? 2 : 4);
+                let precision = (coin === 'NIGHT') ? 5 : ((coin === 'BTC' || coin === 'ETH' || cat === 'us_stock' || cat === 'tw_stock') ? 2 : 4);
                 let safeCurrentPrice = Number(currentPrice.toFixed(precision));
                 let displayValue = savedInputs[coin] !== undefined ? savedInputs[coin] : safeCurrentPrice;
                 
