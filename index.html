@@ -1675,11 +1675,13 @@
             });
         }
 
-        function renderSimulatorUI() {
+        function renderSimulatorUI(reset = false) {
             let savedInputs = {};
-            document.querySelectorAll('.sim-target-price').forEach(input => {
-                savedInputs[input.getAttribute('data-coin')] = input.value;
-            });
+            if (!reset) {
+                document.querySelectorAll('.sim-target-price').forEach(input => {
+                    savedInputs[input.getAttribute('data-coin')] = input.value;
+                });
+            }
 
             const tbody = document.getElementById('simulator-body');
             tbody.innerHTML = '';
@@ -1727,8 +1729,7 @@
         
         function resetSimulator() {
             if(confirm('確定要將所有資產的模擬價格重設回目前市價嗎？')) {
-                localStorage.removeItem('wealthSimulatorInputs');
-                renderSimulatorUI();
+                renderSimulatorUI(true);
             }
         }
 
