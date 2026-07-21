@@ -247,6 +247,7 @@
                 <div>
                     <h3 style="margin: 0 0 10px 0; display: flex; align-items: center; gap: 10px;">
                         🔮 財富模擬器 (What-If Simulator)
+                        <button onclick="resetSimulator()" style="font-size: 12px; padding: 4px 10px; background: transparent; color: #8b949e; border: 1px solid #30363d; border-radius: 12px; cursor: pointer; transition: 0.2s;" onmouseover="this.style.color='#c9d1d9'; this.style.borderColor='#8b949e'" onmouseout="this.style.color='#8b949e'; this.style.borderColor='#30363d'">🔄 重設為目前市價</button>
                     </h3>
                     <div style="font-size: 13px; color: #8b949e;">修改下方資產的「預期目標價」，立刻試算未來的財富變化！</div>
                 </div>
@@ -1724,6 +1725,13 @@
             updateSimulatorTotals();
         }
         
+        function resetSimulator() {
+            if(confirm('確定要將所有資產的模擬價格重設回目前市價嗎？')) {
+                localStorage.removeItem('wealthSimulatorInputs');
+                renderSimulatorUI();
+            }
+        }
+
         function updateSimulatorTotals() {
             let simTotal = 0;
             let currentRealTotal = 0;
