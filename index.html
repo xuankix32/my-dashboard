@@ -1706,7 +1706,7 @@
                 
                 let precision = (coin === 'NIGHT') ? 5 : ((coin === 'BTC' || coin === 'ETH' || cat === 'us_stock' || cat === 'tw_stock') ? 2 : 4);
                 let safeCurrentPrice = Number(currentPrice.toFixed(precision));
-                let displayValue = savedInputs[coin] !== undefined ? savedInputs[coin] : safeCurrentPrice;
+                let displayValue = savedInputs[coin] !== undefined ? savedInputs[coin] : safeCurrentPrice.toFixed(precision);
                 
                 let tr = document.createElement('tr');
                 tr.innerHTML = `
@@ -1714,7 +1714,7 @@
                     <td>${qty.toLocaleString(undefined, {maximumFractionDigits: 6})}</td>
                     <td style="color: #8b949e;">${currentPrice.toLocaleString('en-US', {minimumFractionDigits: precision, maximumFractionDigits: precision})}</td>
                     <td style="display: flex; gap: 5px; align-items: center; border-bottom: none;">
-                        <input type="number" class="sim-target-price" data-coin="${coin}" data-qty="${qty}" data-cat="${cat}" value="${displayValue}" step="any" oninput="updateSimulatorTotals()" style="width: 120px; padding: 6px; border-radius: 4px; border: 1px solid #58a6ff; background: #0d1117; color: #c9d1d9; outline: none; font-weight: bold;">
+                        <input type="text" inputmode="decimal" class="sim-target-price" data-coin="${coin}" data-qty="${qty}" data-cat="${cat}" data-realprice="${safeCurrentPrice}" value="${displayValue}" oninput="updateSimulatorTotals()" style="width: 120px; padding: 6px; border-radius: 4px; border: 1px solid #58a6ff; background: #0d1117; color: #c9d1d9; outline: none; font-weight: bold;">
                     </td>
                     <td class="sim-row-value" style="font-weight: bold;">$0.00</td>
                     <td class="sim-row-profit" style="font-weight: bold;">$0.00</td>
@@ -1746,7 +1746,7 @@
                 let qty = parseFloat(input.getAttribute('data-qty'));
                 let cat = input.getAttribute('data-cat');
                 let targetPrice = parseFloat(input.value) || 0;
-                let realPrice = priceCache[input.getAttribute('data-coin')] || 0;
+                let realPrice = parseFloat(input.getAttribute('data-realprice')) || 0;
                 
                 let targetValue = qty * targetPrice;
                 let realValue = qty * realPrice;
@@ -1772,22 +1772,26 @@
                 let profitTd = rowTr.querySelector('.sim-row-profit');
                 
                 let nativePrefix = isUsdAsset ? '$' : 'NT$';
-                valTd.innerText = `${nativePrefix}${targetValue.toLocaleString(undefined, {maximumFractionDigits: 2})}`;
+                valTd.innerText = `${nativePrefix}${targetValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
                 
                 let profit = targetValue - realValue;
+                if (Math.abs(profit) < 0.0001) profit = 0;
+                
                 let profitSign = profit >= 0 ? '+' : '';
                 let profitColor = profit >= 0 ? '#3fb950' : '#f85149';
                 let profitPct = realValue > 0 ? (profit / realValue * 100) : 0;
-                profitTd.innerHTML = `<span style="color: ${profitColor};">${profitSign}${nativePrefix}${Math.abs(profit).toLocaleString(undefined, {maximumFractionDigits: 2})} (${profitSign}${profitPct.toFixed(2)}%)</span>`;
+                profitTd.innerHTML = `<span style="color: ${profitColor};">${profitSign}${nativePrefix}${Math.abs(profit).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} (${profitSign}${profitPct.toFixed(2)}%)</span>`;
             });
             
             let diffTotal = simTotal - currentRealTotal;
+            if (Math.abs(diffTotal) < 0.0001) diffTotal = 0;
+            
             let diffSign = diffTotal >= 0 ? '+' : '';
             let diffColor = diffTotal >= 0 ? '#3fb950' : '#f85149';
             let prefix = globalCurrency === 'USD' ? '$' : 'NT$';
             
-            document.getElementById('sim-total-value').innerText = `${prefix}${simTotal.toLocaleString(undefined, {maximumFractionDigits: 2})}`;
-            document.getElementById('sim-diff-value').innerHTML = `<span style="color: ${diffColor};">${diffSign}${prefix}${Math.abs(diffTotal).toLocaleString(undefined, {maximumFractionDigits: 2})}</span>`;
+            document.getElementById('sim-total-value').innerText = `${prefix}${simTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('sim-diff-value').innerHTML = `<span style="color: ${diffColor};">${diffSign}${prefix}${Math.abs(diffTotal).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>`;
         }
 
         window.onload = () => {
