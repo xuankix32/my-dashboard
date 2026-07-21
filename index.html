@@ -670,10 +670,15 @@
                 if (data.status === "error") throw new Error(data.message);
 
                 let localTrades = JSON.parse(localStorage.getItem('wealthTrades')) || [];
-                if (data.trades && data.trades.length === 0 && localTrades.length > 0) {
+                let isDirty = localStorage.getItem('wealthDirty') === 'true';
+                
+                if (isDirty || (data.trades && data.trades.length === 0 && localTrades.length > 0)) {
                     trades = localTrades;
                     await saveDataToCloud(true); 
-                } else { trades = data.trades || []; }
+                } else { 
+                    trades = data.trades || []; 
+                    localStorage.setItem('wealthTrades', JSON.stringify(trades));
+                }
                 
                 cashTWD = data.cashTWD || 0; 
                 stableCoinUSD = data.stableCoinUSD || 0; 
@@ -704,9 +709,12 @@
 
         async function saveDataToCloud(isSilent = false) {
             localStorage.setItem('wealthTrades', JSON.stringify(trades));
+            localStorage.setItem('wealthDirty', 'true');
             if(!isSilent) setStatus('⏳ 正在儲存至 Google 雲端...', 'loading');
             try {
-                await fetch(API_URL, { method: 'POST', body: JSON.stringify({ pwd: wealthPwd, type: 'updateTrades', trades: trades }) });
+                const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ pwd: wealthPwd, type: 'updateTrades', trades: trades }) });
+                if(!res.ok) throw new Error("HTTP error");
+                localStorage.removeItem('wealthDirty');
                 if(!isSilent) setStatus('🟢 成功儲存至 Google 雲端！', 'success');
             } catch (error) { setStatus('🔴 雲端儲存失敗，已暫存本機', 'error'); }
         }
