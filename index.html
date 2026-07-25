@@ -901,6 +901,7 @@
                     filterOptionsHTML += `<option value="${coin}" ${isSelected}>${coin}</option>`;
                 });
                 historyFilterSelect.innerHTML = filterOptionsHTML;
+                historyFilterSelect.value = currentFilter;
             }
 
             let portfolio = {};
