@@ -813,35 +813,31 @@
 
         function editTrade(id) {
             editingId = id.toString();
-            const t = trades.find(trade => trade.id === editingId);
-            if(!t) return;
-            document.getElementById('trade-date').value = formatInputDate(t.date);
-            document.getElementById('trade-date').style.display = 'inline-block';
-            document.getElementById('trade-type').value = t.type;
-            document.getElementById('trade-coin').value = t.coin;
-            document.getElementById('trade-amount').value = t.amount;
-            document.getElementById('trade-price').value = t.price;
-            document.getElementById('form-title').innerText = `✏️ 修改交易紀錄 (${t.coin})`;
-            const saveBtn = document.getElementById('save-btn');
-            saveBtn.innerText = '儲存修改';
-            saveBtn.style.background = '#1f6feb';
-            document.getElementById('cancel-btn').style.display = 'inline-block';
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            renderDashboardUI();
         }
 
         function cancelEdit() {
             editingId = null;
-            document.getElementById('trade-date').value = formatInputDate();
-            document.getElementById('trade-date').style.display = 'none';
-            const coinSelect = document.getElementById('trade-coin');
-            if(coinSelect.options.length > 0) coinSelect.selectedIndex = 0;
-            document.getElementById('trade-amount').value = '';
-            document.getElementById('trade-price').value = '';
-            document.getElementById('form-title').innerText = '➕ 新增交易紀錄';
-            const saveBtn = document.getElementById('save-btn');
-            saveBtn.innerText = '儲存';
-            saveBtn.style.background = '#238636';
-            document.getElementById('cancel-btn').style.display = 'none';
+            renderDashboardUI();
+        }
+
+        async function saveInlineEdit(id) {
+            const targetIndex = trades.findIndex(t => t.id === id);
+            if (targetIndex > -1) {
+                const dateInput = document.getElementById('edit-date-' + id).value;
+                const finalDate = dateInput ? dateInput.replace('T', ' ') : new Date().toLocaleString('zh-TW', { hour12: false });
+                const type = document.getElementById('edit-type-' + id).value;
+                const coin = document.getElementById('edit-coin-' + id).value.trim().toUpperCase();
+                const amount = parseFloat(document.getElementById('edit-amount-' + id).value);
+                const price = parseFloat(document.getElementById('edit-price-' + id).value);
+                
+                if(!coin || !amount || !price) { alert(`請填寫數量與價格`); return; }
+                
+                trades[targetIndex] = { ...trades[targetIndex], date: finalDate, type, coin, amount, price };
+            }
+            editingId = null;
+            renderDashboardUI();
+            await saveDataToCloud();
         }
 
         function toggleShowCash() {
