@@ -155,8 +155,7 @@
 
             <input type="number" id="trade-amount" placeholder="數量 (例: 100)" step="any" style="width: 130px;">
             <input type="number" id="trade-price" placeholder="單價" step="any" style="width: 130px;">
-            <button id="save-btn" class="action-btn" onclick="saveTrade()">儲存</button>
-            <button id="cancel-btn" class="action-btn" onclick="cancelEdit()" style="background: #30363d; display: none;">取消</button>
+            <button id="save-btn" class="action-btn" onclick="saveTrade()">新增</button>
         </div>
 
         <div style="display: flex; align-items: center; gap: 12px;">
@@ -657,6 +656,10 @@
 
         async function syncWithCloud() {
             if (!wealthPwd) { showLogin(); return; }
+            if (editingId !== null) {
+                setStatus('⚠️ 您正在修改資料中，已暫停背景自動同步以保護輸入內容', 'warning');
+                return;
+            }
             try {
                 setStatus('⏳ 正在與 Google 雲端同步...', 'loading');
                 const response = await fetch(`${API_URL}?pwd=${encodeURIComponent(wealthPwd)}`);
@@ -781,21 +784,11 @@
             const price = parseFloat(document.getElementById('trade-price').value);
             const amountLabel = (currentTab === 'tw_stock' || currentTab === 'us_stock') ? '股數' : '數量';
             if(!coin || !amount || !price) { alert(`請填寫${amountLabel}與價格`); return; }
-            if (!editingId) {
-                const newId = Date.now().toString(); 
-                const finalDate = new Date().toLocaleString('zh-TW', { hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/-/g, '/');
-                trades.push({ id: newId, category: currentTab, date: finalDate, type, coin, amount, price });
-                document.getElementById('trade-amount').value = '';
-                document.getElementById('trade-price').value = '';
-            } else {
-                const targetIndex = trades.findIndex(t => t.id === editingId);
-                if (targetIndex > -1) {
-                    const dateInput = document.getElementById('trade-date').value;
-                    const finalDate = dateInput ? dateInput.replace('T', ' ') : new Date().toLocaleString('zh-TW', { hour12: false });
-                    trades[targetIndex] = { ...trades[targetIndex], date: finalDate, type, coin, amount, price };
-                }
-                cancelEdit(); 
-            }
+            const newId = Date.now().toString(); 
+            const finalDate = new Date().toLocaleString('zh-TW', { hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/-/g, '/');
+            trades.push({ id: newId, category: currentTab, date: finalDate, type, coin, amount, price });
+            document.getElementById('trade-amount').value = '';
+            document.getElementById('trade-price').value = '';
             renderDashboardUI(); 
             await saveDataToCloud();
         }
@@ -972,9 +965,30 @@
                 let typeBadge = t.type === 'buy' ? '<span style="color:#3fb950; font-weight:bold;">買入</span>' : '<span style="color:#ff7b72; font-weight:bold;">賣出</span>';
                 let categoryCellHTML = currentTab === 'all' ? `<td><span class="tag-badge">${categoryNames[t.category] || t.category}</span></td>` : '';
                 let actionCellHTML = currentTab === 'all' ? '' : `<td style="text-align: center;">
-                    <button onclick="editTrade('${t.id}')" style="background:transparent; color:#58a6ff; border:1px solid #58a6ff; padding:4px 8px; font-size:12px; margin-bottom: 2px;">修改</button>
-                    <button onclick="deleteTrade('${t.id}')" style="background:transparent; color:#ff7b72; border:1px solid #ff7b72; padding:4px 8px; font-size:12px;">刪除</button>
+                    <button onclick="editTrade('${t.id}')" style="background:transparent; color:#58a6ff; border:1px solid #58a6ff; padding:4px 8px; font-size:12px; margin-bottom: 2px; cursor:pointer;">修改</button>
+                    <button onclick="deleteTrade('${t.id}')" style="background:transparent; color:#ff7b72; border:1px solid #ff7b72; padding:4px 8px; font-size:12px; cursor:pointer;">刪除</button>
                 </td>`;
+
+                if (t.id === editingId) {
+                    let formattedDate = formatInputDate(t.date);
+                    let inputStyle = 'padding: 4px; border-radius: 4px; border: 1px solid #30363d; background: #0d1117; color: #c9d1d9; font-size: 12px;';
+                    let typeHtml = `<select id="edit-type-${t.id}" style="${inputStyle}"><option value="buy" ${t.type==='buy'?'selected':''}>買入</option><option value="sell" ${t.type==='sell'?'selected':''}>賣出</option></select>`;
+                    return `<tr style="background-color: rgba(88, 166, 255, 0.1);">
+                        <td><input type="datetime-local" id="edit-date-${t.id}" value="${formattedDate}" style="${inputStyle} width: 130px;"></td>
+                        <td>${typeHtml}</td>
+                        <td><input type="text" id="edit-coin-${t.id}" value="${t.coin}" style="${inputStyle} width: 60px;"></td>
+                        ${categoryCellHTML}
+                        <td><input type="number" step="any" id="edit-amount-${t.id}" value="${t.amount}" style="${inputStyle} width: 65px;"></td>
+                        <td><input type="number" step="any" id="edit-price-${t.id}" value="${t.price}" style="${inputStyle} width: 65px;"></td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td style="text-align: center;">
+                            <button onclick="saveInlineEdit('${t.id}')" style="background:#238636; color:white; border:none; padding:4px 8px; font-size:12px; border-radius:4px; margin-bottom:2px; cursor:pointer;">儲存</button>
+                            <br>
+                            <button onclick="cancelEdit()" style="background:#30363d; color:white; border:none; padding:4px 8px; font-size:12px; border-radius:4px; cursor:pointer;">取消</button>
+                        </td>
+                    </tr>`;
+                }
 
                 return `<tr>
                     <td style="color:#8b949e; font-size:12px;">${formatDisplayDate(t.date)}</td>
