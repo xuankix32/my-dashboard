@@ -969,10 +969,24 @@
                     let formattedDate = formatInputDate(t.date);
                     let inputStyle = 'padding: 4px; border-radius: 4px; border: 1px solid #30363d; background: #0d1117; color: #c9d1d9; font-size: 12px;';
                     let typeHtml = `<select id="edit-type-${t.id}" style="${inputStyle}"><option value="buy" ${t.type==='buy'?'selected':''}>買入</option><option value="sell" ${t.type==='sell'?'selected':''}>賣出</option></select>`;
+                    
+                    let allOptions = [];
+                    if (categoryOptions[t.category]) allOptions = [...categoryOptions[t.category]];
+                    let customTickers = JSON.parse(localStorage.getItem('wealthCustomTickers')) || { 'tw_stock': [], 'us_stock': [], 'crypto': [] };
+                    if (customTickers[t.category]) {
+                        customTickers[t.category].forEach(ticker => {
+                            if (!allOptions.find(opt => opt.value === ticker)) allOptions.push({ value: ticker, text: ticker });
+                        });
+                    }
+                    if (!allOptions.find(opt => opt.value === t.coin)) allOptions.push({ value: t.coin, text: t.coin });
+                    let coinHtml = `<select id="edit-coin-${t.id}" style="${inputStyle} width: 75px;">` + 
+                        allOptions.map(opt => `<option value="${opt.value}" ${opt.value === t.coin ? 'selected' : ''}>${opt.value}</option>`).join('') + 
+                        `</select>`;
+
                     return `<tr style="background-color: rgba(88, 166, 255, 0.1);">
                         <td><input type="datetime-local" id="edit-date-${t.id}" value="${formattedDate}" style="${inputStyle} width: 130px;"></td>
                         <td>${typeHtml}</td>
-                        <td><input type="text" id="edit-coin-${t.id}" value="${t.coin}" style="${inputStyle} width: 60px;"></td>
+                        <td>${coinHtml}</td>
                         ${categoryCellHTML}
                         <td><input type="number" step="any" id="edit-amount-${t.id}" value="${t.amount}" style="${inputStyle} width: 65px;"></td>
                         <td><input type="number" step="any" id="edit-price-${t.id}" value="${t.price}" style="${inputStyle} width: 65px;"></td>
