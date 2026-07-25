@@ -555,12 +555,14 @@
             }
         }
 
-        function executeTabSwitch(tabId) {
+        function executeTabSwitch(tabId, isAutoSync = false) {
             currentTab = tabId;
             localStorage.setItem('wealthLastTab', tabId); 
 
-            const filterEl = document.getElementById('history-filter');
-            if (filterEl) filterEl.value = 'all';
+            if (!isAutoSync) {
+                const filterEl = document.getElementById('history-filter');
+                if (filterEl) filterEl.value = 'all';
+            }
 
             const timeFilterEl = document.getElementById('trend-time-filter');
             if (timeFilterEl) {
@@ -698,12 +700,12 @@
                 }
                 
                 setStatus('🟢 雲端資料庫同步完成', 'success');
-                executeTabSwitch(currentTab);
+                executeTabSwitch(currentTab, true);
             } catch (error) {
                 console.error(error);
                 setStatus(`🔴 連線異常: ${error.message || '未知錯誤'}`, 'error');
                 trades = JSON.parse(localStorage.getItem('wealthTrades')) || [];
-                executeTabSwitch(currentTab);
+                executeTabSwitch(currentTab, true);
             }
         }
 
