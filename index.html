@@ -559,8 +559,15 @@
             localStorage.setItem('wealthLastTab', tabId); 
 
             if (!isAutoSync) {
+                const catFilterEl = document.getElementById('history-category-filter');
+                if (catFilterEl) {
+                    catFilterEl.value = localStorage.getItem('wealthCategoryFilter') || 'all';
+                }
                 const filterEl = document.getElementById('history-filter');
-                if (filterEl) filterEl.value = 'all';
+                if (filterEl) {
+                    let savedHistoryFilters = JSON.parse(localStorage.getItem('wealthHistoryFilters')) || {};
+                    filterEl.value = savedHistoryFilters[tabId] || 'all';
+                }
             }
 
             const timeFilterEl = document.getElementById('trend-time-filter');
@@ -873,6 +880,9 @@
             if (categoryFilterSelect) {
                 categoryFilterSelect.style.display = currentTab === 'all' ? 'inline-block' : 'none';
                 currentCategoryFilter = categoryFilterSelect.value;
+                if (currentTab === 'all') {
+                    localStorage.setItem('wealthCategoryFilter', currentCategoryFilter);
+                }
             }
 
             let historyFilterSelect = document.getElementById('history-filter');
@@ -896,6 +906,10 @@
                 });
                 historyFilterSelect.innerHTML = filterOptionsHTML;
                 historyFilterSelect.value = currentFilter;
+                
+                let savedHistoryFilters = JSON.parse(localStorage.getItem('wealthHistoryFilters')) || {};
+                savedHistoryFilters[currentTab] = currentFilter;
+                localStorage.setItem('wealthHistoryFilters', JSON.stringify(savedHistoryFilters));
             }
 
             let portfolio = {};
