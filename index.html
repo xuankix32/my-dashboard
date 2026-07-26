@@ -1627,11 +1627,7 @@
                 }];
             }
 
-            let buyData = new Array(sortedSnaps.length).fill(null);
-            let sellData = new Array(sortedSnaps.length).fill(null);
             let tradeDetails = new Array(sortedSnaps.length).fill(null);
-            let buyColors = new Array(sortedSnaps.length).fill(null);
-            let sellColors = new Array(sortedSnaps.length).fill(null);
 
             let scatterTrades = [...trades];
             if (currentTab !== 'all') scatterTrades = scatterTrades.filter(t => t.category === currentTab);
@@ -1660,41 +1656,7 @@
                 });
 
                 if (closestIdx >= 0 && closestIdx < sortedSnaps.length) {
-                    let s = sortedSnaps[closestIdx];
-                    let yVal = null;
-                    if (currentTab === 'all') {
-                        let hiddenState = JSON.parse(localStorage.getItem('wealthTrendLegend')) || {};
-                        let isTotalVisible = !hiddenState[`總資產 (${globalCurrency})`];
-                        
-                        if (isTotalVisible) {
-                            yVal = globalCurrency === 'USD' ? s.total_usd : s.total_twd;
-                        } else {
-                            let includeCash = !hiddenState[`現金 (${globalCurrency})`];
-                            let includeTw = !hiddenState[`台股 (${globalCurrency})`];
-                            let includeUs = !hiddenState[`美股 (${globalCurrency})`];
-                            let includeCrypto = !hiddenState[`加密貨幣 (${globalCurrency})`];
-                            
-                            let base = 0;
-                            if (includeCash) base += (globalCurrency === 'USD' ? s.cash_usd : s.cash_twd);
-                            
-                            if (t.category === 'tw_stock') {
-                                if (includeTw) yVal = base + (globalCurrency === 'USD' ? s.tw_stock_usd : s.tw_stock_twd);
-                            } else if (t.category === 'us_stock') {
-                                if (includeTw) base += (globalCurrency === 'USD' ? s.tw_stock_usd : s.tw_stock_twd);
-                                if (includeUs) yVal = base + (globalCurrency === 'USD' ? s.us_stock_usd : s.us_stock_twd);
-                            } else if (t.category === 'crypto') {
-                                if (includeTw) base += (globalCurrency === 'USD' ? s.tw_stock_usd : s.tw_stock_twd);
-                                if (includeUs) base += (globalCurrency === 'USD' ? s.us_stock_usd : s.us_stock_twd);
-                                if (includeCrypto) yVal = base + (globalCurrency === 'USD' ? s.crypto_usd : s.crypto_twd);
-                            }
-                        }
-                    } else if (currentTab === 'tw_stock') {
-                        yVal = globalCurrency === 'USD' ? s.tw_stock_usd : s.tw_stock_twd;
-                    } else if (currentTab === 'us_stock') {
-                        yVal = globalCurrency === 'USD' ? s.us_stock_usd : s.us_stock_twd;
-                    } else if (currentTab === 'crypto') {
-                        yVal = globalCurrency === 'USD' ? s.crypto_usd : s.crypto_twd;
-                    }
+                    t._closestIdx = closestIdx;
 
                     let str = `${t.type === 'buy' ? '🟢' : '🔴'} ${t.type === 'buy' ? '買入' : '賣出'} ${t.amount} ${t.coin} @ ${t.price}`;
                     if (tradeDetails[closestIdx]) {
@@ -1703,47 +1665,70 @@
                         tradeDetails[closestIdx] = str;
                     }
                     
-                    let ptColor = stringToColor(t.coin);
-                    if (t.type === 'buy') {
-                        buyData[closestIdx] = yVal;
-                        buyColors[closestIdx] = ptColor;
-                    } else {
-                        sellData[closestIdx] = yVal;
-                        sellColors[closestIdx] = ptColor;
-                    }
                 }
             });
 
-            if (buyData.some(d => d !== null)) {
-                datasets.push({
-                    type: 'line',
-                    label: '買入紀錄',
-                    data: buyData,
-                    showLine: false,
-                    pointBackgroundColor: function(ctx) { return buyColors[ctx.dataIndex] || '#3fb950'; },
-                    pointBorderColor: '#3fb950',
-                    pointBorderWidth: 2,
-                    pointRadius: function(ctx) { return ctx.raw !== null ? 6 : 0; },
-                    pointHoverRadius: function(ctx) { return ctx.raw !== null ? 8 : 0; },
-                    order: 3,
-                    stack: 'marker_buy'
-                });
-            }
-            if (sellData.some(d => d !== null)) {
-                datasets.push({
-                    type: 'line',
-                    label: '賣出紀錄',
-                    data: sellData,
-                    showLine: false,
-                    pointBackgroundColor: function(ctx) { return sellColors[ctx.dataIndex] || '#ff7b72'; },
-                    pointBorderColor: '#ff7b72',
-                    pointBorderWidth: 2,
-                    pointRadius: function(ctx) { return ctx.raw !== null ? 6 : 0; },
-                    pointHoverRadius: function(ctx) { return ctx.raw !== null ? 8 : 0; },
-                    order: 3,
-                    stack: 'marker_sell'
-                });
-            }
+            datasets.push({
+                type: 'line', label: '買入紀錄', data: [], pointBackgroundColor: '#3fb950', pointBorderColor: '#3fb950'
+            });
+            datasets.push({
+                type: 'line', label: '賣出紀錄', data: [], pointBackgroundColor: '#ff7b72', pointBorderColor: '#ff7b72'
+            });
+
+            const tradeMarkersPlugin = {
+                id: 'tradeMarkersPlugin',
+                afterDatasetsDraw(chart, args, options) {
+                    const ctx = chart.ctx;
+                    const labels = chart.data.datasets.map(d => d.label);
+                    const totalIdx = labels.findIndex(l => l && l.includes('總資產'));
+                    const buyIdx = labels.findIndex(l => l === '買入紀錄');
+                    const sellIdx = labels.findIndex(l => l === '賣出紀錄');
+                    
+                    const isTotalVisible = totalIdx !== -1 && chart.isDatasetVisible(totalIdx);
+                    const isBuyVisible = buyIdx !== -1 && chart.isDatasetVisible(buyIdx);
+                    const isSellVisible = sellIdx !== -1 && chart.isDatasetVisible(sellIdx);
+
+                    scatterTrades.forEach(t => {
+                        if (t.type === 'buy' && !isBuyVisible) return;
+                        if (t.type === 'sell' && !isSellVisible) return;
+
+                        let closestIdx = t._closestIdx;
+                        if (closestIdx >= 0) {
+                            let targetIdx = -1;
+                            if (currentTab === 'all') {
+                                if (isTotalVisible) {
+                                    targetIdx = totalIdx;
+                                } else {
+                                    let catName = '';
+                                    if (t.category === 'tw_stock') catName = '台股';
+                                    else if (t.category === 'us_stock') catName = '美股';
+                                    else if (t.category === 'crypto') catName = '加密貨幣';
+                                    
+                                    targetIdx = labels.findIndex(l => l && l.includes(catName));
+                                }
+                            } else {
+                                targetIdx = 0;
+                            }
+
+                            if (targetIdx !== -1 && chart.isDatasetVisible(targetIdx)) {
+                                const meta = chart.getDatasetMeta(targetIdx);
+                                const pt = meta.data[closestIdx];
+                                if (pt && !isNaN(pt.x) && !isNaN(pt.y)) {
+                                    ctx.save();
+                                    ctx.beginPath();
+                                    ctx.arc(pt.x, pt.y, 6, 0, 2 * Math.PI);
+                                    ctx.fillStyle = stringToColor(t.coin);
+                                    ctx.fill();
+                                    ctx.lineWidth = 2;
+                                    ctx.strokeStyle = t.type === 'buy' ? '#3fb950' : '#ff7b72';
+                                    ctx.stroke();
+                                    ctx.restore();
+                                }
+                            }
+                        }
+                    });
+                }
+            };
 
             trendChartInstance = new Chart(ctx, {
                 type: 'line',
@@ -1751,6 +1736,7 @@
                     labels: labels,
                     datasets: datasets
                 },
+                plugins: [tradeMarkersPlugin],
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
@@ -1763,11 +1749,11 @@
                             display: true, 
                             labels: { color: '#c9d1d9', usePointStyle: true, boxWidth: 8 },
                             onClick: function(e, legendItem, legend) {
+                                Chart.defaults.plugins.legend.onClick.call(this, e, legendItem, legend);
+                                const ci = legend.chart;
                                 let savedState = JSON.parse(localStorage.getItem('wealthTrendLegend')) || {};
-                                savedState[legendItem.text] = !savedState[legendItem.text];
+                                savedState[legendItem.text] = !ci.isDatasetVisible(legendItem.datasetIndex);
                                 localStorage.setItem('wealthTrendLegend', JSON.stringify(savedState));
-                                
-                                setTimeout(() => updateTrendChart(currentTab), 0);
                             }
                         }, 
                         tooltip: { 
