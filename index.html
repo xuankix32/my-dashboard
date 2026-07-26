@@ -1669,6 +1669,8 @@
                     let pt = {
                         x: labels[closestIdx],
                         y: yVal,
+                        index: closestIdx,
+                        isBuy: t.type === 'buy',
                         tradeStr: `${t.type === 'buy' ? '買入' : '賣出'} ${t.amount} ${t.coin} @ ${t.price}`
                     };
                     
@@ -1747,6 +1749,9 @@
                             }
                         }, 
                         tooltip: { 
+                            filter: function(tooltipItem) {
+                                return tooltipItem.dataset.type !== 'scatter';
+                            },
                             callbacks: { 
                                 label: function(c) { 
                                     if (c.raw && c.raw.tradeStr) {
@@ -1794,6 +1799,27 @@
                                             footerStr += `\n${diffIcon} 較前次: ${diffSign}${formatMoney(diff, 2, globalCurrency)} (${diffSign}${pct.toFixed(2)}%)`;
                                         }
                                     }
+                                    
+                                    let hoverIdx = items[0].dataIndex;
+                                    let searchRadius = 12;
+                                    if (sortedSnaps.length > 3000) searchRadius = 72;
+                                    else if (sortedSnaps.length > 1000) searchRadius = 48;
+                                    
+                                    let nearbyTrades = [];
+                                    [...buyPoints, ...sellPoints].forEach(p => {
+                                        if (Math.abs(p.index - hoverIdx) <= searchRadius) {
+                                            nearbyTrades.push(p);
+                                        }
+                                    });
+                                    
+                                    if (nearbyTrades.length > 0) {
+                                        footerStr += `\n\n📌 附近區間交易紀錄:`;
+                                        nearbyTrades.forEach(p => {
+                                            let icon = p.isBuy ? '🟢' : '🔴';
+                                            footerStr += `\n${icon} ${p.tradeStr}`;
+                                        });
+                                    }
+                                    
                                     return footerStr;
                                 }
                             } 
