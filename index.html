@@ -1696,7 +1696,8 @@
                     pointBorderWidth: 2,
                     pointRadius: function(ctx) { return ctx.raw !== null ? 6 : 0; },
                     pointHoverRadius: function(ctx) { return ctx.raw !== null ? 8 : 0; },
-                    order: -3
+                    order: -3,
+                    stack: 'marker_buy'
                 });
             }
             if (sellData.some(d => d !== null)) {
@@ -1710,7 +1711,8 @@
                     pointBorderWidth: 2,
                     pointRadius: function(ctx) { return ctx.raw !== null ? 6 : 0; },
                     pointHoverRadius: function(ctx) { return ctx.raw !== null ? 8 : 0; },
-                    order: -3
+                    order: -3,
+                    stack: 'marker_sell'
                 });
             }
 
