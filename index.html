@@ -279,14 +279,24 @@
         <div class="card" style="margin-top: 25px; display: none;" id="trend-card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
             <h3 style="margin: 0;">📈 總資產走勢 (Trend)</h3>
-            <select id="trend-time-filter" onchange="updateTrendChart()" style="padding: 6px 10px; font-size: 13px; border-radius: 6px; border: 1px solid #30363d; background: #21262d; color: #c9d1d9; outline: none; cursor: pointer;">
-                <option value="all">全部時間</option>
-                <option value="1d">一天</option>
-                <option value="1w">一週</option>
-                <option value="1m">一個月</option>
-                <option value="6m">半年</option>
-                <option value="1y">一年</option>
-            </select>
+            <div style="display: flex; gap: 8px;">
+                <div style="position: relative;" id="custom-legend-container">
+                    <button onclick="toggleLegendMenu()" style="padding: 6px 10px; font-size: 13px; border-radius: 6px; border: 1px solid #30363d; background: #21262d; color: #c9d1d9; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                        👁️ 圖層
+                    </button>
+                    <div id="legend-dropdown" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 5px; background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 12px; min-width: 180px; z-index: 1000; box-shadow: 0 8px 24px rgba(0,0,0,0.4);">
+                        <!-- Legend items injected via JS -->
+                    </div>
+                </div>
+                <select id="trend-time-filter" onchange="updateTrendChart()" style="padding: 6px 10px; font-size: 13px; border-radius: 6px; border: 1px solid #30363d; background: #21262d; color: #c9d1d9; outline: none; cursor: pointer;">
+                    <option value="all">全部時間</option>
+                    <option value="1d">一天</option>
+                    <option value="1w">一週</option>
+                    <option value="1m">一個月</option>
+                    <option value="6m">半年</option>
+                    <option value="1y">一年</option>
+                </select>
+            </div>
         </div>
         <div style="width: 100%; height: 280px;">
             <canvas id="trendChart"></canvas>
@@ -1488,10 +1498,10 @@
             if (!hiddenState) {
                 hiddenState = {};
                 if (currentTab === 'all') {
-                    hiddenState[`現金 (${globalCurrency})`] = true;
-                    hiddenState[`台股 (${globalCurrency})`] = true;
-                    hiddenState[`美股 (${globalCurrency})`] = true;
-                    hiddenState[`加密貨幣 (${globalCurrency})`] = true;
+                    hiddenState['現金'] = true;
+                    hiddenState['台股'] = true;
+                    hiddenState['美股'] = true;
+                    hiddenState['加密貨幣'] = true;
                 }
             }
             let datasets = [];
@@ -1499,7 +1509,7 @@
             if (currentTab === 'all') {
                 datasets = [
                     {
-                        label: `現金 (${globalCurrency})`,
+                        label: '現金',
                         data: sortedSnaps.map(s => {
                             let total = globalCurrency === 'USD' ? s.total_usd : s.total_twd;
                             let crypto = globalCurrency === 'USD' ? s.crypto_usd : s.crypto_twd;
@@ -1516,10 +1526,10 @@
                         pointRadius: 0,
                         pointHoverRadius: 4,
                         stack: 'Stack 0',
-                        hidden: hiddenState[`現金 (${globalCurrency})`] === true
+                        hidden: hiddenState['現金'] === true
                     },
                     {
-                        label: `台股 (${globalCurrency})`,
+                        label: '台股',
                         data: sortedSnaps.map(s => globalCurrency === 'USD' ? s.tw_stock_usd : s.tw_stock_twd),
                         borderColor: '#d32f2f',
                         backgroundColor: 'rgba(211, 47, 47, 0.4)', 
@@ -1529,10 +1539,10 @@
                         pointRadius: 0,
                         pointHoverRadius: 4,
                         stack: 'Stack 0',
-                        hidden: hiddenState[`台股 (${globalCurrency})`] === true
+                        hidden: hiddenState['台股'] === true
                     },
                     {
-                        label: `美股 (${globalCurrency})`,
+                        label: '美股',
                         data: sortedSnaps.map(s => globalCurrency === 'USD' ? s.us_stock_usd : s.us_stock_twd),
                         borderColor: '#1976d2',
                         backgroundColor: 'rgba(25, 118, 210, 0.4)', 
@@ -1542,10 +1552,10 @@
                         pointRadius: 0,
                         pointHoverRadius: 4,
                         stack: 'Stack 0',
-                        hidden: hiddenState[`美股 (${globalCurrency})`] === true
+                        hidden: hiddenState['美股'] === true
                     },
                     {
-                        label: `加密貨幣 (${globalCurrency})`,
+                        label: '加密貨幣',
                         data: sortedSnaps.map(s => globalCurrency === 'USD' ? s.crypto_usd : s.crypto_twd),
                         borderColor: '#f7931a',
                         backgroundColor: 'rgba(247, 147, 26, 0.4)', 
@@ -1555,10 +1565,10 @@
                         pointRadius: 0,
                         pointHoverRadius: 4,
                         stack: 'Stack 0',
-                        hidden: hiddenState[`加密貨幣 (${globalCurrency})`] === true
+                        hidden: hiddenState['加密貨幣'] === true
                     },
                     {
-                        label: `累積投入本金 (含現金, ${globalCurrency})`,
+                        label: '累積投入本金',
                         data: sortedSnaps.map(s => globalCurrency === 'USD' ? s.hist_cost_usd : s.hist_cost_twd),
                         borderColor: '#ffffff',
                         borderDash: [5, 5],
@@ -1569,10 +1579,10 @@
                         pointHoverRadius: 4,
                         stack: 'Stack 1',
                         order: 1,
-                        hidden: hiddenState[`累積投入本金 (含現金, ${globalCurrency})`] === true
+                        hidden: hiddenState['累積投入本金'] === true
                     },
                     {
-                        label: `總資產 (${globalCurrency})`,
+                        label: '總資產',
                         data: sortedSnaps.map(s => globalCurrency === 'USD' ? s.total_usd : s.total_twd),
                         borderColor: '#58a6ff',
                         borderWidth: 2,
@@ -1582,7 +1592,7 @@
                         pointHoverRadius: 4,
                         stack: 'Stack 2',
                         order: 2,
-                        hidden: hiddenState[`總資產 (${globalCurrency})`] === true
+                        hidden: hiddenState['總資產'] === true
                     }
                 ];
             } else {
@@ -1593,17 +1603,17 @@
                 if (currentTab === 'crypto') {
                     dataKey = globalCurrency === 'USD' ? 'crypto_usd' : 'crypto_twd';
                     costDataKey = globalCurrency === 'USD' ? 'hist_cost_crypto_usd' : 'hist_cost_crypto_twd';
-                    chartLabel = `加密貨幣走勢 (${globalCurrency})`;
+                    chartLabel = '加密貨幣走勢';
                     chartColor = '#f7931a'; 
                 } else if (currentTab === 'tw_stock') {
                     dataKey = globalCurrency === 'USD' ? 'tw_stock_usd' : 'tw_stock_twd';
                     costDataKey = globalCurrency === 'USD' ? 'hist_cost_tw_stock_usd' : 'hist_cost_tw_stock_twd';
-                    chartLabel = `台股走勢 (${globalCurrency})`;
+                    chartLabel = '台股走勢';
                     chartColor = '#d32f2f'; 
                 } else if (currentTab === 'us_stock') {
                     dataKey = globalCurrency === 'USD' ? 'us_stock_usd' : 'us_stock_twd';
                     costDataKey = globalCurrency === 'USD' ? 'hist_cost_us_stock_usd' : 'hist_cost_us_stock_twd';
-                    chartLabel = `美股走勢 (${globalCurrency})`;
+                    chartLabel = '美股走勢';
                     chartColor = '#1976d2'; 
                 }
 
@@ -1622,7 +1632,7 @@
                     hidden: hiddenState[chartLabel] === true 
                 },
                 {
-                    label: `累積投入本金 (${globalCurrency})`,
+                    label: '累積投入本金',
                     data: sortedSnaps.map(s => s[costDataKey] || 0),
                     borderColor: '#ffffff',
                     borderDash: [5, 5],
@@ -1632,7 +1642,7 @@
                     pointRadius: 0,
                     pointHoverRadius: 4,
                     order: 1,
-                    hidden: hiddenState[`累積投入本金 (${globalCurrency})`] === true
+                    hidden: hiddenState['累積投入本金'] === true
                 }];
             }
 
@@ -1755,44 +1765,7 @@
                     },
                     plugins: { 
                         legend: { 
-                            display: true, 
-                            labels: { color: '#c9d1d9', usePointStyle: true, boxWidth: 8 },
-                            onClick: function(e, legendItem, legend) {
-                                const ci = legend.chart;
-                                const isTotalAsset = legendItem.text.includes('總資產');
-                                const componentLabels = ['現金', '台股', '美股', '加密貨幣'];
-                                const isComponent = componentLabels.some(l => legendItem.text.includes(l));
-                                
-                                Chart.defaults.plugins.legend.onClick.call(this, e, legendItem, legend);
-                                
-                                const isNowVisible = ci.isDatasetVisible(legendItem.datasetIndex);
-                                
-                                if (isTotalAsset && isNowVisible) {
-                                    ci.data.datasets.forEach((ds, idx) => {
-                                        if (componentLabels.some(l => ds.label && ds.label.includes(l))) {
-                                            ci.hide(idx);
-                                        }
-                                    });
-                                } else if (isTotalAsset && !isNowVisible) {
-                                    ci.data.datasets.forEach((ds, idx) => {
-                                        if (componentLabels.some(l => ds.label && ds.label.includes(l))) {
-                                            ci.show(idx);
-                                        }
-                                    });
-                                } else if (isComponent && isNowVisible) {
-                                    ci.data.datasets.forEach((ds, idx) => {
-                                        if (ds.label && ds.label.includes('總資產')) {
-                                            ci.hide(idx);
-                                        }
-                                    });
-                                }
-                                
-                                let savedState = {};
-                                ci.data.datasets.forEach((ds, idx) => {
-                                    savedState[ds.label] = !ci.isDatasetVisible(idx);
-                                });
-                                localStorage.setItem('wealthTrendLegend', JSON.stringify(savedState));
-                            }
+                            display: false
                         }, 
                         tooltip: { 
                             filter: function(tooltipItem) {
@@ -1871,6 +1844,8 @@
                     }
                 }
             });
+            
+            renderCustomLegend(trendChartInstance);
         }
 
         function renderSimulatorUI(reset = false) {
@@ -2003,6 +1978,109 @@
             }
         };
         setInterval(syncWithCloud, 60000); 
+        function toggleLegendMenu() {
+            const dropdown = document.getElementById('legend-dropdown');
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        }
+
+        document.addEventListener('click', function(event) {
+            const container = document.getElementById('custom-legend-container');
+            if (container && !container.contains(event.target)) {
+                document.getElementById('legend-dropdown').style.display = 'none';
+            }
+        });
+
+        function renderCustomLegend(chart) {
+            const container = document.getElementById('legend-dropdown');
+            if (!container) return;
+            
+            let html = '';
+            const labels = chart.data.datasets.map(ds => ds.label);
+            
+            // Helper to render a group of checkboxes
+            const renderGroup = (title, matchNames) => {
+                let groupHtml = `<div style="font-size: 11px; color: #8b949e; margin-bottom: 6px; border-bottom: 1px solid #30363d; padding-bottom: 2px;">${title}</div>`;
+                let hasItems = false;
+                
+                chart.data.datasets.forEach((ds, idx) => {
+                    if (matchNames.some(name => ds.label && ds.label.includes(name))) {
+                        hasItems = true;
+                        let isVisible = chart.isDatasetVisible(idx);
+                        let color = ds.borderColor === '#ffffff' ? '#c9d1d9' : (ds.pointBorderColor || ds.borderColor || '#8b949e');
+                        groupHtml += `
+                        <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer; font-size: 13px; color: ${isVisible ? '#c9d1d9' : '#8b949e'}; transition: color 0.2s;">
+                            <input type="checkbox" ${isVisible ? 'checked' : ''} onchange="toggleCustomLegend(${idx})" style="accent-color: ${color}; cursor: pointer; width: 14px; height: 14px; margin: 0;">
+                            <span style="display:inline-block; width:10px; height:10px; background:${color}; border-radius:50%;"></span>
+                            ${ds.label}
+                        </label>
+                        `;
+                    }
+                });
+                return hasItems ? groupHtml + '<div style="margin-bottom: 10px;"></div>' : '';
+            };
+
+            if (currentTab === 'all') {
+                html += renderGroup('主圖層', ['總資產', '累積投入本金']);
+                html += renderGroup('資產明細', ['現金', '台股', '美股', '加密貨幣']);
+                html += renderGroup('交易點位', ['買入紀錄', '賣出紀錄']);
+            } else {
+                html += renderGroup('主圖層', ['走勢', '累積投入本金']);
+                html += renderGroup('交易點位', ['買入紀錄', '賣出紀錄']);
+            }
+            
+            container.innerHTML = html;
+        }
+
+        function toggleCustomLegend(datasetIndex) {
+            if (!trendChartInstance) return;
+            const ci = trendChartInstance;
+            const dsLabel = ci.data.datasets[datasetIndex].label || '';
+            const isTotalAsset = dsLabel.includes('總資產');
+            const componentLabels = ['現金', '台股', '美股', '加密貨幣'];
+            const isComponent = componentLabels.some(l => dsLabel.includes(l));
+            
+            const isCurrentlyVisible = ci.isDatasetVisible(datasetIndex);
+            
+            // Toggle the clicked one
+            if (isCurrentlyVisible) {
+                ci.hide(datasetIndex);
+            } else {
+                ci.show(datasetIndex);
+            }
+            
+            // Apply mutually exclusive logic if switching to visible
+            if (!isCurrentlyVisible) {
+                if (isTotalAsset) {
+                    ci.data.datasets.forEach((ds, idx) => {
+                        if (componentLabels.some(l => ds.label && ds.label.includes(l))) {
+                            ci.hide(idx);
+                        }
+                    });
+                } else if (isComponent) {
+                    ci.data.datasets.forEach((ds, idx) => {
+                        if (ds.label && ds.label.includes('總資產')) {
+                            ci.hide(idx);
+                        }
+                    });
+                }
+            } else if (isCurrentlyVisible && isTotalAsset) {
+                // If turning off Total Assets, turn on components
+                ci.data.datasets.forEach((ds, idx) => {
+                    if (componentLabels.some(l => ds.label && ds.label.includes(l))) {
+                        ci.show(idx);
+                    }
+                });
+            }
+            
+            ci.update();
+            renderCustomLegend(ci);
+            
+            let savedState = {};
+            ci.data.datasets.forEach((ds, idx) => {
+                if (ds.label) savedState[ds.label] = !ci.isDatasetVisible(idx);
+            });
+            localStorage.setItem('wealthTrendLegend', JSON.stringify(savedState));
+        }
 
     </script>
 </body>
