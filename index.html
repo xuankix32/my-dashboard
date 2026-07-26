@@ -1484,7 +1484,16 @@
                 s.hist_cost_us_stock_twd = (histCostCat.us_stock_usd + cashUSD) * histExRate;
             });
 
-            let hiddenState = JSON.parse(localStorage.getItem('wealthTrendLegend')) || {};
+            let hiddenState = JSON.parse(localStorage.getItem('wealthTrendLegend'));
+            if (!hiddenState) {
+                hiddenState = {};
+                if (currentTab === 'all') {
+                    hiddenState[`現金 (${globalCurrency})`] = true;
+                    hiddenState[`台股 (${globalCurrency})`] = true;
+                    hiddenState[`美股 (${globalCurrency})`] = true;
+                    hiddenState[`加密貨幣 (${globalCurrency})`] = true;
+                }
+            }
             let datasets = [];
 
             if (currentTab === 'all') {
@@ -1749,10 +1758,39 @@
                             display: true, 
                             labels: { color: '#c9d1d9', usePointStyle: true, boxWidth: 8 },
                             onClick: function(e, legendItem, legend) {
-                                Chart.defaults.plugins.legend.onClick.call(this, e, legendItem, legend);
                                 const ci = legend.chart;
-                                let savedState = JSON.parse(localStorage.getItem('wealthTrendLegend')) || {};
-                                savedState[legendItem.text] = !ci.isDatasetVisible(legendItem.datasetIndex);
+                                const isTotalAsset = legendItem.text.includes('總資產');
+                                const componentLabels = ['現金', '台股', '美股', '加密貨幣'];
+                                const isComponent = componentLabels.some(l => legendItem.text.includes(l));
+                                
+                                Chart.defaults.plugins.legend.onClick.call(this, e, legendItem, legend);
+                                
+                                const isNowVisible = ci.isDatasetVisible(legendItem.datasetIndex);
+                                
+                                if (isTotalAsset && isNowVisible) {
+                                    ci.data.datasets.forEach((ds, idx) => {
+                                        if (componentLabels.some(l => ds.label && ds.label.includes(l))) {
+                                            ci.hide(idx);
+                                        }
+                                    });
+                                } else if (isTotalAsset && !isNowVisible) {
+                                    ci.data.datasets.forEach((ds, idx) => {
+                                        if (componentLabels.some(l => ds.label && ds.label.includes(l))) {
+                                            ci.show(idx);
+                                        }
+                                    });
+                                } else if (isComponent && isNowVisible) {
+                                    ci.data.datasets.forEach((ds, idx) => {
+                                        if (ds.label && ds.label.includes('總資產')) {
+                                            ci.hide(idx);
+                                        }
+                                    });
+                                }
+                                
+                                let savedState = {};
+                                ci.data.datasets.forEach((ds, idx) => {
+                                    savedState[ds.label] = !ci.isDatasetVisible(idx);
+                                });
                                 localStorage.setItem('wealthTrendLegend', JSON.stringify(savedState));
                             }
                         }, 
