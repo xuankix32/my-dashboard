@@ -1627,10 +1627,11 @@
                 }];
             }
 
-            let buyPoints = [];
-            let sellPoints = [];
-            let bgColorsBuy = [];
-            let bgColorsSell = [];
+            let buyData = new Array(sortedSnaps.length).fill(null);
+            let sellData = new Array(sortedSnaps.length).fill(null);
+            let tradeDetails = new Array(sortedSnaps.length).fill(null);
+            let buyColors = new Array(sortedSnaps.length).fill(null);
+            let sellColors = new Array(sortedSnaps.length).fill(null);
 
             let scatterTrades = [...trades];
             if (currentTab !== 'all') scatterTrades = scatterTrades.filter(t => t.category === currentTab);
@@ -1666,51 +1667,50 @@
                     else if (currentTab === 'us_stock') yVal = globalCurrency === 'USD' ? s.us_stock_usd : s.us_stock_twd;
                     else if (currentTab === 'crypto') yVal = globalCurrency === 'USD' ? s.crypto_usd : s.crypto_twd;
 
-                    let pt = {
-                        x: labels[closestIdx],
-                        y: yVal,
-                        index: closestIdx,
-                        isBuy: t.type === 'buy',
-                        tradeStr: `${t.type === 'buy' ? '買入' : '賣出'} ${t.amount} ${t.coin} @ ${t.price}`
-                    };
+                    let str = `${t.type === 'buy' ? '🟢' : '🔴'} ${t.type === 'buy' ? '買入' : '賣出'} ${t.amount} ${t.coin} @ ${t.price}`;
+                    if (tradeDetails[closestIdx]) {
+                        tradeDetails[closestIdx] += `\n${str}`;
+                    } else {
+                        tradeDetails[closestIdx] = str;
+                    }
                     
                     let ptColor = stringToColor(t.coin);
                     if (t.type === 'buy') {
-                        buyPoints.push(pt);
-                        bgColorsBuy.push(ptColor);
+                        buyData[closestIdx] = yVal;
+                        buyColors[closestIdx] = ptColor;
                     } else {
-                        sellPoints.push(pt);
-                        bgColorsSell.push(ptColor);
+                        sellData[closestIdx] = yVal;
+                        sellColors[closestIdx] = ptColor;
                     }
                 }
             });
 
-            if (buyPoints.length > 0) {
+            if (buyData.some(d => d !== null)) {
                 datasets.push({
-                    type: 'scatter',
+                    type: 'line',
                     label: '買入紀錄',
-                    data: buyPoints,
-                    backgroundColor: bgColorsBuy,
-                    borderColor: '#3fb950',
-                    borderWidth: 2,
-                    pointRadius: 6,
-                    pointHoverRadius: 8,
-                    order: -3,
-                    stack: 'scatter_buy'
+                    data: buyData,
+                    showLine: false,
+                    pointBackgroundColor: function(ctx) { return buyColors[ctx.dataIndex] || '#3fb950'; },
+                    pointBorderColor: '#3fb950',
+                    pointBorderWidth: 2,
+                    pointRadius: function(ctx) { return ctx.raw !== null ? 6 : 0; },
+                    pointHoverRadius: function(ctx) { return ctx.raw !== null ? 8 : 0; },
+                    order: -3
                 });
             }
-            if (sellPoints.length > 0) {
+            if (sellData.some(d => d !== null)) {
                 datasets.push({
-                    type: 'scatter',
+                    type: 'line',
                     label: '賣出紀錄',
-                    data: sellPoints,
-                    backgroundColor: bgColorsSell,
-                    borderColor: '#ff7b72',
-                    borderWidth: 2,
-                    pointRadius: 6,
-                    pointHoverRadius: 8,
-                    order: -3,
-                    stack: 'scatter_sell'
+                    data: sellData,
+                    showLine: false,
+                    pointBackgroundColor: function(ctx) { return sellColors[ctx.dataIndex] || '#ff7b72'; },
+                    pointBorderColor: '#ff7b72',
+                    pointBorderWidth: 2,
+                    pointRadius: function(ctx) { return ctx.raw !== null ? 6 : 0; },
+                    pointHoverRadius: function(ctx) { return ctx.raw !== null ? 8 : 0; },
+                    order: -3
                 });
             }
 
@@ -1750,16 +1750,14 @@
                         }, 
                         tooltip: { 
                             filter: function(tooltipItem) {
-                                return tooltipItem.dataset.type !== 'scatter';
+                                return tooltipItem.dataset.label !== '買入紀錄' && tooltipItem.dataset.label !== '賣出紀錄';
                             },
                             callbacks: { 
                                 label: function(c) { 
-                                    if (c.raw && c.raw.tradeStr) {
-                                        return ` ${c.dataset.label}: ${c.raw.tradeStr}`;
-                                    }
                                     return ` ${c.dataset.label}: ${formatMoney(c.parsed.y, 2, globalCurrency)}`;
                                 },
                                 afterBody: function(items) {
+                                    if (!items || items.length === 0) return '';
                                     let currentTotal = 0;
                                     let isAllTab = currentTab === 'all';
                                     
@@ -1801,23 +1799,19 @@
                                     }
                                     
                                     let hoverIdx = items[0].dataIndex;
-                                    let searchRadius = 12;
-                                    if (sortedSnaps.length > 3000) searchRadius = 72;
-                                    else if (sortedSnaps.length > 1000) searchRadius = 48;
+                                    let searchRadius = 3; 
+                                    if (sortedSnaps.length > 3000) searchRadius = 15;
+                                    else if (sortedSnaps.length > 1000) searchRadius = 8;
                                     
-                                    let nearbyTrades = [];
-                                    [...buyPoints, ...sellPoints].forEach(p => {
-                                        if (Math.abs(p.index - hoverIdx) <= searchRadius) {
-                                            nearbyTrades.push(p);
+                                    let nearby = [];
+                                    for (let i = Math.max(0, hoverIdx - searchRadius); i <= Math.min(tradeDetails.length - 1, hoverIdx + searchRadius); i++) {
+                                        if (tradeDetails[i]) {
+                                            nearby.push(tradeDetails[i]);
                                         }
-                                    });
+                                    }
                                     
-                                    if (nearbyTrades.length > 0) {
-                                        footerStr += `\n\n📌 附近區間交易紀錄:`;
-                                        nearbyTrades.forEach(p => {
-                                            let icon = p.isBuy ? '🟢' : '🔴';
-                                            footerStr += `\n${icon} ${p.tradeStr}`;
-                                        });
+                                    if (nearby.length > 0) {
+                                        footerStr += `\n\n📌 附近區間交易紀錄:\n` + nearby.join('\n');
                                     }
                                     
                                     return footerStr;
