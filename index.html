@@ -1664,23 +1664,29 @@
                     let yVal = null;
                     if (currentTab === 'all') {
                         let hiddenState = JSON.parse(localStorage.getItem('wealthTrendLegend')) || {};
-                        let includeCash = !hiddenState[`現金 (${globalCurrency})`];
-                        let includeTw = !hiddenState[`台股 (${globalCurrency})`];
-                        let includeUs = !hiddenState[`美股 (${globalCurrency})`];
-                        let includeCrypto = !hiddenState[`加密貨幣 (${globalCurrency})`];
+                        let isTotalVisible = !hiddenState[`總資產 (${globalCurrency})`];
                         
-                        let base = 0;
-                        if (includeCash) base += (globalCurrency === 'USD' ? s.cash_usd : s.cash_twd);
-                        
-                        if (t.category === 'tw_stock') {
-                            if (includeTw) yVal = base + (globalCurrency === 'USD' ? s.tw_stock_usd : s.tw_stock_twd);
-                        } else if (t.category === 'us_stock') {
-                            if (includeTw) base += (globalCurrency === 'USD' ? s.tw_stock_usd : s.tw_stock_twd);
-                            if (includeUs) yVal = base + (globalCurrency === 'USD' ? s.us_stock_usd : s.us_stock_twd);
-                        } else if (t.category === 'crypto') {
-                            if (includeTw) base += (globalCurrency === 'USD' ? s.tw_stock_usd : s.tw_stock_twd);
-                            if (includeUs) base += (globalCurrency === 'USD' ? s.us_stock_usd : s.us_stock_twd);
-                            if (includeCrypto) yVal = base + (globalCurrency === 'USD' ? s.crypto_usd : s.crypto_twd);
+                        if (isTotalVisible) {
+                            yVal = globalCurrency === 'USD' ? s.total_usd : s.total_twd;
+                        } else {
+                            let includeCash = !hiddenState[`現金 (${globalCurrency})`];
+                            let includeTw = !hiddenState[`台股 (${globalCurrency})`];
+                            let includeUs = !hiddenState[`美股 (${globalCurrency})`];
+                            let includeCrypto = !hiddenState[`加密貨幣 (${globalCurrency})`];
+                            
+                            let base = 0;
+                            if (includeCash) base += (globalCurrency === 'USD' ? s.cash_usd : s.cash_twd);
+                            
+                            if (t.category === 'tw_stock') {
+                                if (includeTw) yVal = base + (globalCurrency === 'USD' ? s.tw_stock_usd : s.tw_stock_twd);
+                            } else if (t.category === 'us_stock') {
+                                if (includeTw) base += (globalCurrency === 'USD' ? s.tw_stock_usd : s.tw_stock_twd);
+                                if (includeUs) yVal = base + (globalCurrency === 'USD' ? s.us_stock_usd : s.us_stock_twd);
+                            } else if (t.category === 'crypto') {
+                                if (includeTw) base += (globalCurrency === 'USD' ? s.tw_stock_usd : s.tw_stock_twd);
+                                if (includeUs) base += (globalCurrency === 'USD' ? s.us_stock_usd : s.us_stock_twd);
+                                if (includeCrypto) yVal = base + (globalCurrency === 'USD' ? s.crypto_usd : s.crypto_twd);
+                            }
                         }
                     } else if (currentTab === 'tw_stock') {
                         yVal = globalCurrency === 'USD' ? s.tw_stock_usd : s.tw_stock_twd;
