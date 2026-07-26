@@ -1735,7 +1735,15 @@
                                 if (pt && !isNaN(pt.x) && !isNaN(pt.y)) {
                                     ctx.save();
                                     ctx.beginPath();
-                                    ctx.arc(pt.x, pt.y, 6, 0, 2 * Math.PI);
+                                    const size = 6;
+                                    if (t.type === 'buy') {
+                                        ctx.arc(pt.x, pt.y, size, 0, 2 * Math.PI);
+                                    } else {
+                                        ctx.moveTo(pt.x - size - 1, pt.y - size + 2);
+                                        ctx.lineTo(pt.x + size + 1, pt.y - size + 2);
+                                        ctx.lineTo(pt.x, pt.y + size + 1);
+                                        ctx.closePath();
+                                    }
                                     ctx.fillStyle = stringToColor(t.coin);
                                     ctx.fill();
                                     ctx.lineWidth = 2;
@@ -2007,10 +2015,16 @@
                         hasItems = true;
                         let isVisible = chart.isDatasetVisible(idx);
                         let color = ds.borderColor === '#ffffff' ? '#c9d1d9' : (ds.pointBorderColor || ds.borderColor || '#8b949e');
+                        
+                        let shapeHtml = `<span style="display:inline-block; width:10px; height:10px; background:${color}; border-radius:50%;"></span>`;
+                        if (ds.label && ds.label.includes('賣出')) {
+                            shapeHtml = `<span style="display:inline-block; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 10px solid ${color};"></span>`;
+                        }
+
                         groupHtml += `
                         <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer; font-size: 13px; color: ${isVisible ? '#c9d1d9' : '#8b949e'}; transition: color 0.2s;">
                             <input type="checkbox" ${isVisible ? 'checked' : ''} onchange="toggleCustomLegend(${idx})" style="accent-color: ${color}; cursor: pointer; width: 14px; height: 14px; margin: 0;">
-                            <span style="display:inline-block; width:10px; height:10px; background:${color}; border-radius:50%;"></span>
+                            ${shapeHtml}
                             ${ds.label}
                         </label>
                         `;
