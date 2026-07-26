@@ -1559,7 +1559,7 @@
                         pointRadius: 0,
                         pointHoverRadius: 4,
                         stack: 'Stack 1',
-                        order: -1,
+                        order: 1,
                         hidden: hiddenState[`累積投入本金 (含現金, ${globalCurrency})`] === true
                     },
                     {
@@ -1572,7 +1572,7 @@
                         pointRadius: 0,
                         pointHoverRadius: 4,
                         stack: 'Stack 2',
-                        order: -2,
+                        order: 2,
                         hidden: hiddenState[`總資產 (${globalCurrency})`] === true
                     }
                 ];
@@ -1622,7 +1622,7 @@
                     tension: 0.2,
                     pointRadius: 0,
                     pointHoverRadius: 4,
-                    order: -1,
+                    order: 1,
                     hidden: hiddenState[`累積投入本金 (${globalCurrency})`] === true
                 }];
             }
@@ -1725,7 +1725,7 @@
                     pointBorderWidth: 2,
                     pointRadius: function(ctx) { return ctx.raw !== null ? 6 : 0; },
                     pointHoverRadius: function(ctx) { return ctx.raw !== null ? 8 : 0; },
-                    order: -3,
+                    order: 3,
                     stack: 'marker_buy'
                 });
             }
@@ -1740,7 +1740,7 @@
                     pointBorderWidth: 2,
                     pointRadius: function(ctx) { return ctx.raw !== null ? 6 : 0; },
                     pointHoverRadius: function(ctx) { return ctx.raw !== null ? 8 : 0; },
-                    order: -3,
+                    order: 3,
                     stack: 'marker_sell'
                 });
             }
