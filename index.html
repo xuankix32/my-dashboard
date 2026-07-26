@@ -1627,6 +1627,89 @@
                 }];
             }
 
+            let buyPoints = [];
+            let sellPoints = [];
+            let bgColorsBuy = [];
+            let bgColorsSell = [];
+
+            let scatterTrades = [...trades];
+            if (currentTab !== 'all') scatterTrades = scatterTrades.filter(t => t.category === currentTab);
+            
+            let historyFilterSelect = document.getElementById('history-filter');
+            let historyFilter = historyFilterSelect ? historyFilterSelect.value : 'all';
+            
+            let catFilterSelect = document.getElementById('history-category-filter');
+            let catFilter = catFilterSelect ? catFilterSelect.value : 'all';
+            
+            if (historyFilter !== 'all') scatterTrades = scatterTrades.filter(t => t.coin === historyFilter);
+            else if (currentTab === 'all' && catFilter !== 'all') scatterTrades = scatterTrades.filter(t => t.category === catFilter);
+
+            if (sortedSnaps.length > 0) {
+                let firstSnapTime = new Date(sortedSnaps[0].date).getTime();
+                scatterTrades = scatterTrades.filter(t => new Date(t.date).getTime() >= firstSnapTime - (24 * 60 * 60 * 1000));
+            }
+
+            scatterTrades.forEach(t => {
+                let tTime = new Date(t.date).getTime();
+                let closestIdx = 0;
+                let minDiff = Infinity;
+                sortedSnaps.forEach((s, idx) => {
+                    let diff = Math.abs(new Date(s.date).getTime() - tTime);
+                    if (diff < minDiff) { minDiff = diff; closestIdx = idx; }
+                });
+
+                if (closestIdx >= 0 && closestIdx < sortedSnaps.length) {
+                    let s = sortedSnaps[closestIdx];
+                    let yVal = 0;
+                    if (currentTab === 'all') yVal = globalCurrency === 'USD' ? s.total_usd : s.total_twd;
+                    else if (currentTab === 'tw_stock') yVal = globalCurrency === 'USD' ? s.tw_stock_usd : s.tw_stock_twd;
+                    else if (currentTab === 'us_stock') yVal = globalCurrency === 'USD' ? s.us_stock_usd : s.us_stock_twd;
+                    else if (currentTab === 'crypto') yVal = globalCurrency === 'USD' ? s.crypto_usd : s.crypto_twd;
+
+                    let pt = {
+                        x: labels[closestIdx],
+                        y: yVal,
+                        tradeStr: `${t.type === 'buy' ? '買入' : '賣出'} ${t.amount} ${t.coin} @ ${t.price}`
+                    };
+                    
+                    let ptColor = stringToColor(t.coin);
+                    if (t.type === 'buy') {
+                        buyPoints.push(pt);
+                        bgColorsBuy.push(ptColor);
+                    } else {
+                        sellPoints.push(pt);
+                        bgColorsSell.push(ptColor);
+                    }
+                }
+            });
+
+            if (buyPoints.length > 0) {
+                datasets.push({
+                    type: 'scatter',
+                    label: '買入紀錄',
+                    data: buyPoints,
+                    backgroundColor: bgColorsBuy,
+                    borderColor: '#3fb950',
+                    borderWidth: 2,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    order: -3
+                });
+            }
+            if (sellPoints.length > 0) {
+                datasets.push({
+                    type: 'scatter',
+                    label: '賣出紀錄',
+                    data: sellPoints,
+                    backgroundColor: bgColorsSell,
+                    borderColor: '#ff7b72',
+                    borderWidth: 2,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    order: -3
+                });
+            }
+
             trendChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -1664,6 +1747,9 @@
                         tooltip: { 
                             callbacks: { 
                                 label: function(c) { 
+                                    if (c.raw && c.raw.tradeStr) {
+                                        return ` ${c.dataset.label}: ${c.raw.tradeStr}`;
+                                    }
                                     return ` ${c.dataset.label}: ${formatMoney(c.parsed.y, 2, globalCurrency)}`;
                                 },
                                 afterBody: function(items) {
