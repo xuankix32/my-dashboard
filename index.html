@@ -316,6 +316,7 @@
                 <select id="history-filter" onchange="renderDashboardUI()" style="padding: 6px 10px; font-size: 13px; border-radius: 6px; border: 1px solid #30363d; background: #21262d; color: #c9d1d9; outline: none; cursor: pointer;">
                     <option value="all">全部標的</option>
                 </select>
+                <button class="sort-btn" id="history-currency-btn" onclick="toggleHistoryCurrency()">💱 切換</button>
                 <button class="sort-btn" id="sort-toggle-btn" onclick="toggleSortOrder()">⏳ 最新交易在前</button>
             </div>
         </div>
@@ -348,6 +349,7 @@
         let currentExchangeRate = 32.5;
         let tabHideZero = JSON.parse(localStorage.getItem('wealthHideZeroTabs')) || { 'tw_stock': false, 'us_stock': false, 'crypto': false, 'all': false };
         let tabCurrencies = JSON.parse(localStorage.getItem('wealthCurrencies')) || { 'tw_stock': 'TWD', 'us_stock': 'USD', 'crypto': 'USD', 'all': 'USD' };    
+        let historyCurrency = localStorage.getItem('wealthHistoryCurrency') || 'TWD';
         let pieChartMode = localStorage.getItem('wealthPieMode') || 'detail'; 
         let showCashInValueChart = localStorage.getItem('wealthShowCashInVal') ? JSON.parse(localStorage.getItem('wealthShowCashInVal')) : true;
         let wealthPwd = localStorage.getItem('wealthPwd') || '';
@@ -523,6 +525,12 @@
             tabCurrencies[currentTab] = tabCurrencies[currentTab] === 'USD' ? 'TWD' : 'USD';
             localStorage.setItem('wealthCurrencies', JSON.stringify(tabCurrencies)); 
             updateCurrencyUI(); 
+            renderDashboardUI();
+        }
+
+        function toggleHistoryCurrency() {
+            historyCurrency = historyCurrency === 'USD' ? 'TWD' : 'USD';
+            localStorage.setItem('wealthHistoryCurrency', historyCurrency);
             renderDashboardUI();
         }
 
@@ -908,6 +916,11 @@
                 currentFilter = 'all';
             }
             
+            const histCurBtn = document.getElementById('history-currency-btn');
+            if (histCurBtn) {
+                histCurBtn.innerText = historyCurrency === 'USD' ? '💱 以 TWD 計價' : '💱 以 USD 計價';
+            }
+            
             if (historyFilterSelect) {
                 let filterOptionsHTML = `<option value="all">全部標的</option>`;
                 uniqueCoins.forEach(coin => {
@@ -971,12 +984,12 @@
             
             historyBody.innerHTML = sortedTrades.map((t) => {
                 let itemCurrency = t.category === 'tw_stock' ? 'TWD' : 'USD';
-                let logCurrency = globalCurrency;
+                let logCurrency = historyCurrency;
                 let logPrice = t.price;
                 let logRealized = t.realizedPnL;
-                if (globalCurrency === 'USD' && itemCurrency === 'TWD') {
+                if (historyCurrency === 'USD' && itemCurrency === 'TWD') {
                     logPrice /= currentExchangeRate; if (logRealized !== null) logRealized /= currentExchangeRate;
-                } else if (globalCurrency === 'TWD' && itemCurrency === 'USD') {
+                } else if (historyCurrency === 'TWD' && itemCurrency === 'USD') {
                     logPrice *= currentExchangeRate; if (logRealized !== null) logRealized *= currentExchangeRate;
                 }
                 let precision = (t.coin === 'NIGHT') ? 5 : ((t.coin === 'BTC' || t.coin === 'ETH' || logCurrency === 'TWD' || t.category === 'us_stock') ? 2 : 4);
