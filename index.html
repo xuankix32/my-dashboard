@@ -529,7 +529,9 @@
         }
 
         function toggleHistoryCurrency() {
-            historyCurrency = historyCurrency === 'USD' ? 'TWD' : 'USD';
+            if (historyCurrency === 'TWD') historyCurrency = 'USD';
+            else if (historyCurrency === 'USD') historyCurrency = 'NATIVE';
+            else historyCurrency = 'TWD';
             localStorage.setItem('wealthHistoryCurrency', historyCurrency);
             renderDashboardUI();
         }
@@ -918,7 +920,9 @@
             
             const histCurBtn = document.getElementById('history-currency-btn');
             if (histCurBtn) {
-                histCurBtn.innerText = historyCurrency === 'USD' ? '💱 以 TWD 計價' : '💱 以 USD 計價';
+                if (historyCurrency === 'NATIVE') histCurBtn.innerText = '💱 當地幣別計價';
+                else if (historyCurrency === 'USD') histCurBtn.innerText = '💱 統一 USD 計價';
+                else histCurBtn.innerText = '💱 統一 TWD 計價';
             }
             
             if (historyFilterSelect) {
@@ -984,7 +988,7 @@
             
             historyBody.innerHTML = sortedTrades.map((t) => {
                 let itemCurrency = t.category === 'tw_stock' ? 'TWD' : 'USD';
-                let logCurrency = historyCurrency;
+                let logCurrency = historyCurrency === 'NATIVE' ? itemCurrency : historyCurrency;
                 let logPrice = t.price;
                 let logRealized = t.realizedPnL;
                 if (historyCurrency === 'USD' && itemCurrency === 'TWD') {
