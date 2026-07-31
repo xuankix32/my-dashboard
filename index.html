@@ -1888,12 +1888,19 @@
             trades.forEach(t => {
                 if(t.coin === '現金' || t.coin === '美金' || t.coin === 'USDT/USDC' || t.coin === '現金與穩定幣') return;
                 if (!holdings[t.coin]) {
-                    holdings[t.coin] = { qty: 0, category: t.category };
+                    holdings[t.coin] = { qty: 0, category: t.category, cost: 0 };
                 }
                 if (t.type === 'buy') {
                     holdings[t.coin].qty += parseFloat(t.amount);
+                    holdings[t.coin].cost += (parseFloat(t.amount) * parseFloat(t.price));
                 } else {
-                    holdings[t.coin].qty -= parseFloat(t.amount);
+                    if (holdings[t.coin].qty > 0) {
+                        let avgCost = holdings[t.coin].cost / holdings[t.coin].qty;
+                        holdings[t.coin].qty -= parseFloat(t.amount);
+                        holdings[t.coin].cost -= (parseFloat(t.amount) * avgCost);
+                    } else {
+                        holdings[t.coin].qty -= parseFloat(t.amount);
+                    }
                 }
             });
             
@@ -1902,6 +1909,7 @@
                 
                 let qty = holdings[coin].qty;
                 let cat = holdings[coin].category;
+                let cost = holdings[coin].cost;
                 let currentPrice = priceCache[coin] || 0;
                 
                 let precision = (coin === 'NIGHT') ? 5 : ((coin === 'BTC' || coin === 'ETH' || cat === 'us_stock' || cat === 'tw_stock') ? 2 : 4);
@@ -1914,7 +1922,7 @@
                     <td>${qty.toLocaleString(undefined, {maximumFractionDigits: 6})}</td>
                     <td style="color: #8b949e;">${currentPrice.toLocaleString('en-US', {minimumFractionDigits: precision, maximumFractionDigits: precision})}</td>
                     <td style="display: flex; gap: 5px; align-items: center; border-bottom: none;">
-                        <input type="text" inputmode="decimal" class="sim-target-price" data-coin="${coin}" data-qty="${qty}" data-cat="${cat}" data-realprice="${safeCurrentPrice}" value="${displayValue}" oninput="updateSimulatorTotals()" style="width: 120px; padding: 6px; border-radius: 4px; border: 1px solid #58a6ff; background: #0d1117; color: #c9d1d9; outline: none; font-weight: bold;">
+                        <input type="text" inputmode="decimal" class="sim-target-price" data-coin="${coin}" data-qty="${qty}" data-cat="${cat}" data-realprice="${safeCurrentPrice}" data-cost="${cost}" value="${displayValue}" oninput="updateSimulatorTotals()" style="width: 120px; padding: 6px; border-radius: 4px; border: 1px solid #58a6ff; background: #0d1117; color: #c9d1d9; outline: none; font-weight: bold;">
                     </td>
                     <td class="sim-row-value" style="font-weight: bold;">$0.00</td>
                     <td class="sim-row-profit" style="font-weight: bold;">$0.00</td>
@@ -1945,26 +1953,25 @@
                 let qty = parseFloat(input.getAttribute('data-qty'));
                 let cat = input.getAttribute('data-cat');
                 let targetPrice = parseFloat(input.value) || 0;
-                let realPrice = parseFloat(input.getAttribute('data-realprice')) || 0;
+                let costVal = parseFloat(input.getAttribute('data-cost')) || 0;
                 
                 let targetValue = qty * targetPrice;
-                let realValue = qty * realPrice;
                 
                 let isUsdAsset = (cat === 'us_stock' || cat === 'crypto');
                 
                 let targetValuePref = targetValue;
-                let realValuePref = realValue;
+                let costValuePref = costVal;
                 
                 if (globalCurrency === 'TWD' && isUsdAsset) {
                     targetValuePref = targetValue * currentExchangeRate;
-                    realValuePref = realValue * currentExchangeRate;
+                    costValuePref = costVal * currentExchangeRate;
                 } else if (globalCurrency === 'USD' && !isUsdAsset) {
                     targetValuePref = targetValue / currentExchangeRate;
-                    realValuePref = realValue / currentExchangeRate;
+                    costValuePref = costVal / currentExchangeRate;
                 }
                 
                 simTotal += targetValuePref;
-                currentRealTotal += realValuePref;
+                currentRealTotal += costValuePref;
                 
                 let rowTr = input.closest('tr');
                 let valTd = rowTr.querySelector('.sim-row-value');
@@ -1973,12 +1980,12 @@
                 let nativePrefix = isUsdAsset ? '$' : 'NT$';
                 valTd.innerText = `${nativePrefix}${targetValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
                 
-                let profit = targetValue - realValue;
+                let profit = targetValue - costVal;
                 if (Math.abs(profit) < 0.0001) profit = 0;
                 
                 let profitSign = profit >= 0 ? '+' : '';
                 let profitColor = profit >= 0 ? '#3fb950' : '#f85149';
-                let profitPct = realValue > 0 ? (profit / realValue * 100) : 0;
+                let profitPct = costVal > 0 ? (profit / costVal * 100) : 0;
                 profitTd.innerHTML = `<span style="color: ${profitColor};">${profitSign}${nativePrefix}${Math.abs(profit).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} (${profitSign}${profitPct.toFixed(2)}%)</span>`;
             });
             
