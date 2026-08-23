@@ -1669,14 +1669,6 @@
             let scatterTrades = [...trades];
             if (currentTab !== 'all') scatterTrades = scatterTrades.filter(t => t.category === currentTab);
             
-            let historyFilterSelect = document.getElementById('history-filter');
-            let historyFilter = historyFilterSelect ? historyFilterSelect.value : 'all';
-            
-            let catFilterSelect = document.getElementById('history-category-filter');
-            let catFilter = catFilterSelect ? catFilterSelect.value : 'all';
-            
-            if (historyFilter !== 'all') scatterTrades = scatterTrades.filter(t => t.coin === historyFilter);
-            else if (currentTab === 'all' && catFilter !== 'all') scatterTrades = scatterTrades.filter(t => t.category === catFilter);
 
             if (sortedSnaps.length > 0) {
                 let firstSnapTime = new Date(sortedSnaps[0].date).getTime();
