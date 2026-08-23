@@ -1511,7 +1511,8 @@
                 s.hist_cost_us_stock_twd = (histCostCat.us_stock_usd + cashUSD) * histExRate;
             });
 
-            let hiddenState = JSON.parse(localStorage.getItem('wealthTrendLegend'));
+            let legendStorageKey = 'wealthTrendLegend_' + currentTab;
+            let hiddenState = JSON.parse(localStorage.getItem(legendStorageKey));
             if (!hiddenState) {
                 hiddenState = {};
                 if (currentTab === 'all') {
@@ -2117,7 +2118,8 @@
             ci.data.datasets.forEach((ds, idx) => {
                 if (ds.label) savedState[ds.label] = !ci.isDatasetVisible(idx);
             });
-            localStorage.setItem('wealthTrendLegend', JSON.stringify(savedState));
+            let legendStorageKey = 'wealthTrendLegend_' + currentTab;
+            localStorage.setItem(legendStorageKey, JSON.stringify(savedState));
         }
 
     </script>
