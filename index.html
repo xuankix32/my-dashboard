@@ -1559,21 +1559,39 @@
                         costKey = globalCurrency === 'USD' ? 'hist_cost_us_stock_usd' : 'hist_cost_us_stock_twd';
                     }
 
-                    let startProfit = startSnap[assetKey] - startSnap[costKey];
-                    let endProfit = endSnap[assetKey] - endSnap[costKey];
-                    let profitChange = endProfit - startProfit;
+                    let startAsset = startSnap[assetKey];
+                    let endAsset = endSnap[assetKey];
+                    let startCost = startSnap[costKey];
+                    let endCost = endSnap[costKey];
+
+                    let displayVal = 0;
+                    let displayPct = 0;
+                    let modeText = '';
+
+                    if (trendRoiMode === 'unrealized') {
+                        let startProfit = startAsset - startCost;
+                        let endProfit = endAsset - endCost;
+                        displayVal = endProfit - startProfit;
+                        displayPct = startAsset > 0 ? (displayVal / startAsset) * 100 : 0;
+                        modeText = '未實現損益';
+                    } else {
+                        displayVal = endAsset - startAsset;
+                        displayPct = startAsset > 0 ? (displayVal / startAsset) * 100 : 0;
+                        modeText = '總資產規模';
+                    }
                     
-                    let roiPct = startSnap[assetKey] > 0 ? (profitChange / startSnap[assetKey]) * 100 : 0;
-                    
-                    let sign = profitChange >= 0 ? '+' : '';
-                    let bgColor = profitChange >= 0 ? 'rgba(63, 185, 80, 0.15)' : 'rgba(255, 123, 114, 0.15)';
-                    let color = profitChange >= 0 ? '#3fb950' : '#ff7b72';
+                    let sign = displayVal >= 0 ? '+' : '';
+                    let bgColor = displayVal >= 0 ? 'rgba(63, 185, 80, 0.15)' : 'rgba(255, 123, 114, 0.15)';
+                    let color = displayVal >= 0 ? '#3fb950' : '#ff7b72';
                     let timeText = filterValue === 'all' ? '全部時間' : document.querySelector(`#trend-time-filter option[value="${filterValue}"]`).text;
                     
-                    badgeEl.innerHTML = `📅 過去${timeText}: ${sign}${formatMoney(profitChange, 0, globalCurrency)} (${sign}${roiPct.toFixed(2)}%)`;
+                    badgeEl.innerHTML = `📅 過去${timeText} (${modeText}) 🔄: ${sign}${formatMoney(displayVal, 0, globalCurrency)} (${sign}${displayPct.toFixed(2)}%)`;
                     badgeEl.style.backgroundColor = bgColor;
                     badgeEl.style.color = color;
                     badgeEl.style.display = 'inline-block';
+                    badgeEl.style.cursor = 'pointer';
+                    badgeEl.title = '點擊切換計算模式 (未實現損益 / 總資產規模)';
+                    badgeEl.onclick = toggleRoiMode;
                 }
             } else {
                 let badgeEl = document.getElementById('trend-roi-badge');
