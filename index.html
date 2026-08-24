@@ -360,6 +360,7 @@
         let pieChartMode = localStorage.getItem('wealthPieMode') || 'detail'; 
         let showCashInValueChart = localStorage.getItem('wealthShowCashInVal') ? JSON.parse(localStorage.getItem('wealthShowCashInVal')) : true;
         let showCashInCostChart = localStorage.getItem('wealthShowCashInCost') ? JSON.parse(localStorage.getItem('wealthShowCashInCost')) : true;
+        let trendRoiMode = localStorage.getItem('wealthTrendRoiMode') || 'unrealized';
         let wealthPwd = localStorage.getItem('wealthPwd') || '';
 
         function attemptLogin() {
@@ -889,6 +890,14 @@
             showCashInCostChart = document.getElementById('show-cost-cash-toggle').checked;
             localStorage.setItem('wealthShowCashInCost', JSON.stringify(showCashInCostChart));
             renderDashboardUI();
+        }
+
+        function toggleRoiMode() {
+            trendRoiMode = trendRoiMode === 'unrealized' ? 'asset' : 'unrealized';
+            localStorage.setItem('wealthTrendRoiMode', trendRoiMode);
+            if (document.getElementById('trend-card').style.display !== 'none') {
+                updateTrendChart();
+            }
         }
 
         function renderDashboardUI() {
