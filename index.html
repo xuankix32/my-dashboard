@@ -284,7 +284,7 @@
     <div id="secondary-dashboard-content">
         <div class="card" style="margin-top: 25px; display: none;" id="trend-card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
-            <h3 style="margin: 0;">📈 總資產走勢 (Trend)</h3>
+            <h3 style="margin: 0; display: flex; align-items: center; gap: 10px;">📈 總資產走勢 (Trend) <span id="trend-roi-badge" style="font-size: 13px; font-weight: normal; padding: 4px 8px; border-radius: 6px; display: none;"></span></h3>
             <div style="display: flex; gap: 8px;">
                 <div style="position: relative;" id="custom-legend-container">
                     <button onclick="toggleLegendMenu()" style="padding: 6px 10px; font-size: 13px; border-radius: 6px; border: 1px solid #30363d; background: #21262d; color: #c9d1d9; cursor: pointer; display: flex; align-items: center; gap: 6px;">
@@ -1530,6 +1530,47 @@
                 s.hist_cost_us_stock_twd = (histCostCat.us_stock_usd + cashUSD) * histExRate;
             });
 
+            if (sortedSnaps.length > 0) {
+                let badgeEl = document.getElementById('trend-roi-badge');
+                if (badgeEl) {
+                    let startSnap = sortedSnaps[0];
+                    let endSnap = sortedSnaps[sortedSnaps.length - 1];
+
+                    let assetKey = globalCurrency === 'USD' ? 'total_usd' : 'total_twd';
+                    let costKey = globalCurrency === 'USD' ? 'hist_cost_usd' : 'hist_cost_twd';
+                    
+                    if (currentTab === 'crypto') {
+                        assetKey = globalCurrency === 'USD' ? 'crypto_usd' : 'crypto_twd';
+                        costKey = globalCurrency === 'USD' ? 'hist_cost_crypto_usd' : 'hist_cost_crypto_twd';
+                    } else if (currentTab === 'tw_stock') {
+                        assetKey = globalCurrency === 'USD' ? 'tw_stock_usd' : 'tw_stock_twd';
+                        costKey = globalCurrency === 'USD' ? 'hist_cost_tw_stock_usd' : 'hist_cost_tw_stock_twd';
+                    } else if (currentTab === 'us_stock') {
+                        assetKey = globalCurrency === 'USD' ? 'us_stock_usd' : 'us_stock_twd';
+                        costKey = globalCurrency === 'USD' ? 'hist_cost_us_stock_usd' : 'hist_cost_us_stock_twd';
+                    }
+
+                    let startProfit = startSnap[assetKey] - startSnap[costKey];
+                    let endProfit = endSnap[assetKey] - endSnap[costKey];
+                    let profitChange = endProfit - startProfit;
+                    
+                    let roiPct = startSnap[assetKey] > 0 ? (profitChange / startSnap[assetKey]) * 100 : 0;
+                    
+                    let sign = profitChange >= 0 ? '+' : '';
+                    let bgColor = profitChange >= 0 ? 'rgba(63, 185, 80, 0.15)' : 'rgba(255, 123, 114, 0.15)';
+                    let color = profitChange >= 0 ? '#3fb950' : '#ff7b72';
+                    let timeText = filterValue === 'all' ? '全部時間' : document.querySelector(`#trend-time-filter option[value="${filterValue}"]`).text;
+                    
+                    badgeEl.innerHTML = `📅 過去${timeText}: ${sign}${formatMoney(profitChange, 0, globalCurrency)} (${sign}${roiPct.toFixed(2)}%)`;
+                    badgeEl.style.backgroundColor = bgColor;
+                    badgeEl.style.color = color;
+                    badgeEl.style.display = 'inline-block';
+                }
+            } else {
+                let badgeEl = document.getElementById('trend-roi-badge');
+                if (badgeEl) badgeEl.style.display = 'none';
+            }
+
             let legendStorageKey = 'wealthTrendLegend_' + currentTab;
             let hiddenState = JSON.parse(localStorage.getItem(legendStorageKey));
             if (!hiddenState) {
@@ -1852,6 +1893,29 @@
                                             let pct = (diff / prevTotal) * 100;
                                             footerStr += `\n${diffIcon} 較前次: ${diffSign}${formatMoney(diff, 2, globalCurrency)} (${diffSign}${pct.toFixed(2)}%)`;
                                         }
+                                    }
+                                    
+                                    let snap = sortedSnaps[items[0].dataIndex];
+                                    if (snap) {
+                                        let assetKey = globalCurrency === 'USD' ? 'total_usd' : 'total_twd';
+                                        let costKey = globalCurrency === 'USD' ? 'hist_cost_usd' : 'hist_cost_twd';
+                                        
+                                        if (currentTab === 'crypto') {
+                                            assetKey = globalCurrency === 'USD' ? 'crypto_usd' : 'crypto_twd';
+                                            costKey = globalCurrency === 'USD' ? 'hist_cost_crypto_usd' : 'hist_cost_crypto_twd';
+                                        } else if (currentTab === 'tw_stock') {
+                                            assetKey = globalCurrency === 'USD' ? 'tw_stock_usd' : 'tw_stock_twd';
+                                            costKey = globalCurrency === 'USD' ? 'hist_cost_tw_stock_usd' : 'hist_cost_tw_stock_twd';
+                                        } else if (currentTab === 'us_stock') {
+                                            assetKey = globalCurrency === 'USD' ? 'us_stock_usd' : 'us_stock_twd';
+                                            costKey = globalCurrency === 'USD' ? 'hist_cost_us_stock_usd' : 'hist_cost_us_stock_twd';
+                                        }
+
+                                        let allTimeProfit = snap[assetKey] - snap[costKey];
+                                        let allTimeRoi = snap[costKey] > 0 ? (allTimeProfit / snap[costKey]) * 100 : 0;
+                                        let roiSign = allTimeProfit >= 0 ? '+' : '';
+                                        
+                                        footerStr += `\n------------------\n🏆 歷史總獲利: ${roiSign}${formatMoney(allTimeProfit, 2, globalCurrency)} (${roiSign}${allTimeRoi.toFixed(2)}%)`;
                                     }
                                     
                                     let hoverIdx = items[0].dataIndex;
