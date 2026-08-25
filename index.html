@@ -2100,8 +2100,8 @@
             let diffColor = diffTotal >= 0 ? '#3fb950' : '#f85149';
             let prefix = globalCurrency === 'USD' ? '$' : 'NT$';
             
-            document.getElementById('sim-total-value').innerText = `${prefix}${simTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-            document.getElementById('sim-diff-value').innerHTML = `<span style="color: ${diffColor};">${diffSign}${prefix}${Math.abs(diffTotal).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} (${diffSign}${diffPct.toFixed(2)}%)</span>`;
+            document.getElementById('sim-total-value').innerHTML = `${prefix}${simTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} <span style="color: ${diffColor}; font-size: 0.85em;">(${diffSign}${diffPct.toFixed(2)}%)</span>`;
+            document.getElementById('sim-diff-value').innerHTML = `<span style="color: ${diffColor};">${diffSign}${prefix}${Math.abs(diffTotal).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>`;
         }
 
         window.onload = () => {
