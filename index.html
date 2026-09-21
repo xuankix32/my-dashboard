@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>全方位資產戰情室 (Pro Max版)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     
     <style>
         @keyframes spin { 100% { transform: rotate(360deg); } }
@@ -1480,7 +1479,10 @@
                 sortedSnaps = sortedSnaps.filter(s => new Date(s.date).getTime() >= cutoffTime);
             }
 
-            let labels = sortedSnaps.map(s => new Date(s.date));
+            let labels = sortedSnaps.map(s => {
+                let d = new Date(s.date);
+                return `${d.getMonth()+1}/${d.getDate()} ${d.getHours().toString().padStart(2, '0')}:00`;
+            });
 
             let sortedTrades = [...trades].sort((a,b) => new Date(a.date) - new Date(b.date));
             let tradeIndex = 0;
@@ -1865,28 +1867,6 @@
                         mode: 'index',
                         intersect: false,
                     },
-                    scales: {
-                        x: {
-                            type: 'time',
-                            stacked: currentTab === 'all',
-                            grid: { color: '#30363d' },
-                            ticks: { color: '#8b949e', maxTicksLimit: 7 },
-                            time: {
-                                tooltipFormat: 'yyyy-MM-dd HH:mm',
-                                displayFormats: {
-                                    minute: 'HH:mm',
-                                    hour: 'MM/dd HH:mm',
-                                    day: 'yyyy-MM-dd',
-                                    month: 'yyyy-MM'
-                                }
-                            }
-                        },
-                        y: { 
-                            stacked: currentTab === 'all', 
-                            grid: { color: '#30363d' }, 
-                            ticks: { color: '#8b949e' } 
-                        }
-                    },
                     plugins: { 
                         legend: { 
                             display: false
@@ -1984,6 +1964,10 @@
                                 }
                             } 
                         } 
+                    },
+                    scales: {
+                        x: { stacked: currentTab === 'all', grid: { color: '#30363d' }, ticks: { color: '#8b949e', maxTicksLimit: 7 } },
+                        y: { stacked: currentTab === 'all', grid: { color: '#30363d' }, ticks: { color: '#8b949e' } }
                     }
                 }
             });
