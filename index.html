@@ -942,49 +942,61 @@
                 font-size: 11px;
             }
 
-            /* 2. 方案 A：雙排精緻儀表板 (第 1 排 3 欄並列，第 2 排 2 欄並列) */
+            /* 2. 方案 1：2 欄精緻佈局 (收入/支出一排，結餘/儲蓄率一排，信用卡獨立橫條，寬度翻倍不截斷) */
             .expense-kpi-grid {
-                grid-template-columns: repeat(6, 1fr);
+                grid-template-columns: 1fr 1fr;
                 gap: 8px;
                 margin-bottom: 14px;
             }
             .kpi-card {
-                padding: 10px 8px;
-                border-radius: 8px;
+                padding: 10px 12px;
+                border-radius: 10px;
             }
             .kpi-title {
                 font-size: 11px;
-                margin-bottom: 3px;
+                margin-bottom: 4px;
                 font-weight: 600;
             }
             .kpi-value {
-                font-size: 14px;
+                font-size: 16px;
                 font-weight: 800;
                 white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
             }
             .kpi-sub {
                 display: none; /* 手機版隱藏副標題以極限節省縱向空間 */
             }
 
-            /* 第一排：收入、支出、淨結餘 各佔 2 欄 (合計 6 欄) */
+            /* 第一排：收入、支出 (各佔 1 欄) */
             .kpi-card.kpi-income {
-                grid-column: span 2;
+                grid-column: span 1;
             }
             .kpi-card.kpi-expense {
-                grid-column: span 2;
-            }
-            .kpi-card.kpi-net {
-                grid-column: span 2;
+                grid-column: span 1;
             }
 
-            /* 第二排：儲蓄率、信用卡 各佔 3 欄 (合計 6 欄) */
-            .kpi-card.kpi-savings {
-                grid-column: span 3;
+            /* 第二排：淨結餘、儲蓄率 (各佔 1 欄) */
+            .kpi-card.kpi-net {
+                grid-column: span 1;
             }
+            .kpi-card.kpi-savings {
+                grid-column: span 1;
+            }
+
+            /* 第三排：信用卡累積 (橫條全寬並列標題與金額，極致節省垂直空間) */
             .kpi-card.kpi-card-pending {
-                grid-column: span 3;
+                grid-column: span 2;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 8px 14px;
+            }
+            .kpi-card.kpi-card-pending .kpi-title {
+                margin-bottom: 0;
+                font-size: 12px;
+                gap: 6px;
+            }
+            .kpi-card.kpi-card-pending .kpi-value {
+                font-size: 15px;
             }
 
             /* 3. 快速記帳面板微調，避免拉長 */
