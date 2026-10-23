@@ -751,12 +751,34 @@
             font-size: 13px;
         }
 
-        /* List View */
+        /* List View - 滾輪式容器，防止整頁被拉長 */
         .expense-list-container {
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 14px;
+            max-height: 520px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 6px;
+            padding-bottom: 6px;
             margin-bottom: 24px;
+            border-radius: 8px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-color) var(--bg-body);
+        }
+        .expense-list-container::-webkit-scrollbar {
+            width: 7px;
+        }
+        .expense-list-container::-webkit-scrollbar-track {
+            background: var(--bg-body);
+            border-radius: 6px;
+        }
+        .expense-list-container::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 6px;
+        }
+        .expense-list-container::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-blue);
         }
         .expense-day-group {
             background: var(--bg-card);
@@ -1292,6 +1314,36 @@
                     </div>
                 </div>
 
+                <!-- 1.5 年度 12 個月收支匯總表 (按年模式下置頂展示) -->
+                <div id="expense-annual-summary-wrapper" style="display: none; margin-bottom: 20px;">
+                    <div class="card" style="padding: 18px 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+                            <h3 style="margin: 0; font-size: 15px; color: var(--text-heading); font-weight: 700;">
+                                📑 <span id="annual-summary-table-title">2026 年度各月份收支匯總</span>
+                            </h3>
+                            <span style="font-size: 12px; color: var(--text-muted);">💡 點擊「查看當月」可深入瀏覽各月行事曆</span>
+                        </div>
+                        <div class="table-scroll-container" style="max-height: 480px;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                <thead>
+                                    <tr style="border-bottom: 1px solid var(--border-color); text-align: left; background-color: var(--bg-card);">
+                                        <th style="padding: 10px 12px;">月份</th>
+                                        <th style="padding: 10px 12px; text-align: right;">總收入</th>
+                                        <th style="padding: 10px 12px; text-align: right;">總支出</th>
+                                        <th style="padding: 10px 12px; text-align: right;">淨結餘</th>
+                                        <th style="padding: 10px 12px; text-align: right;">儲蓄率</th>
+                                        <th style="padding: 10px 12px; text-align: center;">筆數</th>
+                                        <th style="padding: 10px 12px; text-align: center;">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="annual-monthly-table-body">
+                                    <!-- 12 個月份的精簡匯總行由 JS 生成 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 視圖切換與篩選列 -->
                 <div class="expense-toolbar">
                     <div class="view-mode-toggle" id="expense-view-mode-toggle">
@@ -1353,40 +1405,18 @@
                     </div>
                 </div>
 
-                <!-- 2. 清單模式容器 -->
+                <!-- 2. 清單模式容器 (滾輪式瀏覽，限制高度不拉長網頁) -->
                 <div id="expense-list-view" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 0 4px;">
+                        <span id="expense-list-count-badge" style="font-size: 13px; font-weight: 700; color: var(--text-heading);">
+                            📋 交易明細清單
+                        </span>
+                        <span style="font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 4px;">
+                            <span>🖱️ 支援滑鼠滾輪上下滾動</span>
+                        </span>
+                    </div>
                     <div class="expense-list-container" id="expense-list-container">
                         <!-- 清單項目由 JS 繪製 -->
-                    </div>
-                </div>
-
-                <!-- 3. 年度 12 個月收支匯總表 (僅在按年模式下展示，取代龐大的流水細項) -->
-                <div id="expense-annual-summary-wrapper" style="display: none;">
-                    <div class="card" style="padding: 18px 20px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
-                            <h3 style="margin: 0; font-size: 15px; color: var(--text-heading); font-weight: 700;">
-                                📑 <span id="annual-summary-table-title">2026 年度各月份收支匯總</span>
-                            </h3>
-                            <span style="font-size: 12px; color: var(--text-muted);">💡 點擊「查看當月」可深入瀏覽各月行事曆與明細</span>
-                        </div>
-                        <div class="table-scroll-container" style="max-height: 480px;">
-                            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                                <thead>
-                                    <tr style="border-bottom: 1px solid var(--border-color); text-align: left; background-color: var(--bg-card);">
-                                        <th style="padding: 10px 12px;">月份</th>
-                                        <th style="padding: 10px 12px; text-align: right;">總收入</th>
-                                        <th style="padding: 10px 12px; text-align: right;">總支出</th>
-                                        <th style="padding: 10px 12px; text-align: right;">淨結餘</th>
-                                        <th style="padding: 10px 12px; text-align: right;">儲蓄率</th>
-                                        <th style="padding: 10px 12px; text-align: center;">筆數</th>
-                                        <th style="padding: 10px 12px; text-align: center;">操作</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="annual-monthly-table-body">
-                                    <!-- 12 個月份的精簡匯總行由 JS 生成 -->
-                                </tbody>
-                            </table>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -1871,20 +1901,26 @@
             const calWrapper = document.getElementById('expense-calendar-wrapper');
             const listView = document.getElementById('expense-list-view');
             const annualSummary = document.getElementById('expense-annual-summary-wrapper');
+            const viewModeToggle = document.getElementById('expense-view-mode-toggle');
 
             if (expensePeriodType === 'year') {
-                if (toolbar) toolbar.style.display = 'none';
+                if (toolbar) toolbar.style.display = 'flex';
+                if (viewModeToggle) viewModeToggle.style.display = 'none'; // 年檢視固定為滾輪清單
                 if (calWrapper) calWrapper.style.display = 'none';
-                if (listView) listView.style.display = 'none';
                 if (annualSummary) {
                     annualSummary.style.display = 'block';
                     renderAnnualMonthlySummaryTable();
                 }
-            } else {
+                if (listView) {
+                    listView.style.display = 'block';
+                    renderExpenseList();
+                }
+            } else if (expensePeriodType === 'month') {
                 if (toolbar) toolbar.style.display = 'flex';
+                if (viewModeToggle) viewModeToggle.style.display = 'inline-flex';
                 if (annualSummary) annualSummary.style.display = 'none';
 
-                if (expensePeriodType === 'month' && expenseViewMode === 'calendar') {
+                if (expenseViewMode === 'calendar') {
                     if (calWrapper) calWrapper.style.display = 'block';
                     if (listView) listView.style.display = 'none';
                     renderExpenseCalendar();
@@ -1892,6 +1928,15 @@
                 } else {
                     if (calWrapper) calWrapper.style.display = 'none';
                     if (listView) listView.style.display = 'block';
+                    renderExpenseList();
+                }
+            } else { // 'custom'
+                if (toolbar) toolbar.style.display = 'flex';
+                if (viewModeToggle) viewModeToggle.style.display = 'none'; // 自訂區間固定為滾輪清單
+                if (annualSummary) annualSummary.style.display = 'none';
+                if (calWrapper) calWrapper.style.display = 'none';
+                if (listView) {
+                    listView.style.display = 'block';
                     renderExpenseList();
                 }
             }
@@ -2310,6 +2355,14 @@
             if (!container) return;
 
             let filtered = getFilteredExpensesForActivePeriod();
+
+            const countBadge = document.getElementById('expense-list-count-badge');
+            if (countBadge) {
+                let prefix = '本月';
+                if (expensePeriodType === 'year') prefix = `${currentExpenseYear} 年度`;
+                else if (expensePeriodType === 'custom') prefix = '自訂區間';
+                countBadge.innerHTML = `📋 ${prefix}交易明細 <span style="font-size: 12px; font-weight: normal; color: var(--text-muted);">(共 ${filtered.length} 筆，滾輪滾動瀏覽)</span>`;
+            }
 
             if (filtered.length === 0) {
                 container.innerHTML = `<div class="card" style="text-align: center; color: var(--text-muted); padding: 40px;">所選期間無符合條件的收支紀錄。</div>`;
