@@ -5,63 +5,169 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>全方位資產戰情室 (Pro Max版)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        (function() {
+            var t = localStorage.getItem('wealthTheme') || 'dark';
+            if (t === 'solarized-light') {
+                document.documentElement.setAttribute('data-theme', 'solarized-light');
+            }
+        })();
+    </script>
     
     <style>
+        :root {
+            --bg-body: #0d1117;
+            --bg-card: #161b22;
+            --bg-input: #0d1117;
+            --bg-hover: #1c2128;
+            --bg-btn: #21262d;
+            --bg-btn-hover: #30363d;
+            --border-color: #30363d;
+            --border-subtle: #21262d;
+            --border-dashed: #30363d;
+            --text-primary: #c9d1d9;
+            --text-heading: #ffffff;
+            --text-muted: #8b949e;
+            --accent-blue: #58a6ff;
+            --accent-blue-bg: rgba(88, 166, 255, 0.1);
+            --accent-primary: #1f6feb;
+            --btn-action: #238636;
+            --btn-action-hover: #2ea043;
+            --badge-profit-bg: rgba(46, 160, 67, 0.15);
+            --badge-profit-text: #3fb950;
+            --badge-profit-border: rgba(46, 160, 67, 0.4);
+            --badge-loss-bg: rgba(248, 81, 73, 0.1);
+            --badge-loss-text: #ff7b72;
+            --badge-loss-border: rgba(248, 81, 73, 0.4);
+            --badge-neutral-bg: rgba(139, 148, 158, 0.1);
+            --badge-neutral-text: #8b949e;
+            --badge-neutral-border: rgba(139, 148, 158, 0.4);
+            --badge-tag-bg: #30363d;
+            --badge-tag-text: #c9d1d9;
+            --card-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            --login-overlay-bg: rgba(13, 17, 23, 0.95);
+            --login-box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        }
+
+        [data-theme="solarized-light"] {
+            --bg-body: #fdf6e3;        /* base3: warm cream / parchment */
+            --bg-card: #eee8d5;        /* base2: card background */
+            --bg-input: #fdf6e3;       /* base3: crisp input box */
+            --bg-hover: #e4ddc8;       /* hover subtle on base2 */
+            --bg-btn: #e4ddc8;
+            --bg-btn-hover: #d5ccb6;
+            --border-color: #d5ccb6;   /* softened base1 border */
+            --border-subtle: #e4ddc8;
+            --border-dashed: #cbbf9d;
+            --text-primary: #586e75;   /* base01 / base00 */
+            --text-heading: #073642;   /* base02: deep slate */
+            --text-muted: #93a1a1;     /* base1: secondary muted */
+            --accent-blue: #268bd2;    /* Solarized Blue */
+            --accent-blue-bg: rgba(38, 139, 210, 0.12);
+            --accent-primary: #268bd2;
+            --btn-action: #859900;     /* Solarized Green */
+            --btn-action-hover: #718200;
+            --badge-profit-bg: rgba(133, 153, 0, 0.15);
+            --badge-profit-text: #859900;
+            --badge-profit-border: rgba(133, 153, 0, 0.45);
+            --badge-loss-bg: rgba(220, 50, 47, 0.12);
+            --badge-loss-text: #dc322f;
+            --badge-loss-border: rgba(220, 50, 47, 0.45);
+            --badge-neutral-bg: rgba(147, 161, 161, 0.2);
+            --badge-neutral-text: #586e75;
+            --badge-neutral-border: rgba(147, 161, 161, 0.5);
+            --badge-tag-bg: #d5ccb6;
+            --badge-tag-text: #586e75;
+            --card-shadow: 0 4px 18px rgba(101, 123, 131, 0.12);
+            --login-overlay-bg: rgba(253, 246, 227, 0.95);
+            --login-box-shadow: 0 8px 24px rgba(101, 123, 131, 0.25);
+        }
+
         @keyframes spin { 100% { transform: rotate(360deg); } }
-        body { font-family: 'Segoe UI', -apple-system, sans-serif; background-color: #0d1117; color: #c9d1d9; padding: 20px; max-width: 1200px; margin: 0 auto; }
+        body { font-family: 'Segoe UI', -apple-system, sans-serif; background-color: var(--bg-body); color: var(--text-primary); padding: 20px; max-width: 1200px; margin: 0 auto; transition: background-color 0.25s ease, color 0.25s ease; }
         .grid { display: grid; grid-template-columns: 3fr 1fr; gap: 20px; align-items: start; }
-        .card { background-color: #161b22; padding: 25px; border-radius: 12px; border: 1px solid #30363d; box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+        .card { background-color: var(--bg-card); padding: 25px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--card-shadow); transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease; }
         
-        .tabs { display: flex; gap: 10px; margin-bottom: 25px; border-bottom: 1px solid #30363d; padding-bottom: 15px; }
-        .tab-btn { background: transparent; color: #8b949e; border: 1px solid transparent; padding: 10px 20px; font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; transition: 0.2s; }
-        .tab-btn:hover { background: #21262d; color: #c9d1d9; }
-        .tab-btn.active { background: #1f6feb; color: white; border-color: #1f6feb; }
+        .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .header-placeholder { width: 140px; }
+        .header-title { margin: 0; text-align: center; font-weight: 800; letter-spacing: 1px; color: var(--text-heading); }
+        .header-actions { width: 140px; display: flex; justify-content: flex-end; }
+        .theme-toggle-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 7px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 20px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: var(--card-shadow);
+            transition: all 0.25s ease;
+        }
+        .theme-toggle-btn:hover {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+            transform: translateY(-1px);
+        }
+        @media (max-width: 650px) {
+            .dashboard-header { flex-direction: column; gap: 12px; }
+            .header-placeholder { display: none; }
+            .header-actions { width: 100%; justify-content: center; }
+        }
+
+        .tabs { display: flex; gap: 10px; margin-bottom: 25px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; }
+        .tab-btn { background: transparent; color: var(--text-muted); border: 1px solid transparent; padding: 10px 20px; font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+        .tab-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .tab-btn.active { background: var(--accent-primary); color: white; border-color: var(--accent-primary); }
 
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
-        th, td { padding: 14px 10px; text-align: right; border-bottom: 1px solid #21262d; }
-        th { color: #8b949e; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+        th, td { padding: 14px 10px; text-align: right; border-bottom: 1px solid var(--border-subtle); }
+        th { color: var(--text-muted); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
         th:first-child, td:first-child { text-align: left; }
         tbody tr { transition: background-color 0.2s ease; }
-        tbody tr:hover { background-color: #1c2128; } 
+        tbody tr:hover { background-color: var(--bg-hover); } 
 
-        .coin-name { font-weight: bold; color: #58a6ff; font-size: 16px; white-space: nowrap; }
+        .coin-name { font-weight: bold; color: var(--accent-blue); font-size: 16px; white-space: nowrap; }
         .badge { padding: 6px 10px; border-radius: 6px; font-weight: 600; font-size: 13px; display: inline-block; min-width: 70px; text-align: center; }
-        .profit-badge { background-color: rgba(46, 160, 67, 0.15); color: #3fb950; border: 1px solid rgba(46, 160, 67, 0.4); }
-        .loss-badge { background-color: rgba(248, 81, 73, 0.1); color: #ff7b72; border: 1px solid rgba(248, 81, 73, 0.4); }
-        .neutral-badge { background-color: rgba(139, 148, 158, 0.1); color: #8b949e; border: 1px solid rgba(139, 148, 158, 0.4); }
-        .tag-badge { background: #30363d; color: #c9d1d9; font-size: 11px; padding: 4px 6px; border-radius: 4px; margin-left: 8px;}
+        .profit-badge { background-color: var(--badge-profit-bg); color: var(--badge-profit-text); border: 1px solid var(--badge-profit-border); }
+        .loss-badge { background-color: var(--badge-loss-bg); color: var(--badge-loss-text); border: 1px solid var(--badge-loss-border); }
+        .neutral-badge { background-color: var(--badge-neutral-bg); color: var(--badge-neutral-text); border: 1px solid var(--badge-neutral-border); }
+        .tag-badge { background: var(--badge-tag-bg); color: var(--badge-tag-text); font-size: 11px; padding: 4px 6px; border-radius: 4px; margin-left: 8px;}
 
         .percent-label { display: block; font-size: 11px; margin-top: 2px; font-weight: normal; opacity: 0.9; }
 
         .summary-stats { text-align: right; }
-        .summary-stats h2 { margin: 5px 0; font-size: 24px; font-weight: bold; color: #fff; }
-        .summary-stats h3 { margin: 8px 0; font-size: 16px; font-weight: normal; color: #8b949e; }
+        .summary-stats h2 { margin: 5px 0; font-size: 24px; font-weight: bold; color: var(--text-heading); }
+        .summary-stats h3 { margin: 8px 0; font-size: 16px; font-weight: normal; color: var(--text-muted); }
         .total-number { font-weight: bold; font-family: 'Courier New', Courier, monospace; letter-spacing: -0.5px; }
 
         .form-group { margin-bottom: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;}
-        input, select { padding: 10px; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: #c9d1d9; outline: none; transition: 0.3s; }
+        input, select { padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); outline: none; transition: 0.3s; }
         input[type="datetime-local"] { font-family: 'Segoe UI', sans-serif; }
-        input:disabled { background-color: #21262d; color: #8b949e; cursor: not-allowed; border-color: #21262d; }
-        input:focus:not(:disabled), select:focus { border-color: #58a6ff; }
-        button.action-btn { background: #238636; color: white; cursor: pointer; font-weight: bold; border: none; padding: 10px 18px; border-radius: 6px; transition: 0.2s; }
-        button.action-btn:hover { background: #2ea043; }
+        input:disabled { background-color: var(--bg-btn); color: var(--text-muted); cursor: not-allowed; border-color: var(--border-subtle); }
+        input:focus:not(:disabled), select:focus { border-color: var(--accent-blue); }
+        button.action-btn { background: var(--btn-action); color: white; cursor: pointer; font-weight: bold; border: none; padding: 10px 18px; border-radius: 6px; transition: 0.2s; }
+        button.action-btn:hover { background: var(--btn-action-hover); }
         
-        .table-scroll-container { max-height: 400px; overflow-y: auto; overflow-x: auto; border: 1px solid #30363d; border-radius: 8px; }
-        thead th { position: sticky; top: 0; background-color: #161b22; z-index: 1; }
+        .table-scroll-container { max-height: 400px; overflow-y: auto; overflow-x: auto; border: 1px solid var(--border-color); border-radius: 8px; }
+        thead th { position: sticky; top: 0; background-color: var(--bg-card); z-index: 1; }
 
-        .sort-btn { background: #21262d; border: 1px solid #30363d; color: #c9d1d9; padding: 6px 12px; font-size: 13px; border-radius: 6px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 5px;}
-        .sort-btn:hover { background: #30363d; color: #fff; }
+        .sort-btn { background: var(--bg-btn); border: 1px solid var(--border-color); color: var(--text-primary); padding: 6px 12px; font-size: 13px; border-radius: 6px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 5px;}
+        .sort-btn:hover { background: var(--bg-btn-hover); color: var(--text-heading); }
 
-        .autocomplete-item { padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #21262d; font-size: 13px; color: #c9d1d9; transition: background 0.2s; }
-        .autocomplete-item:hover { background-color: #1f6feb; color: white; }
+        .autocomplete-item { padding: 10px 15px; cursor: pointer; border-bottom: 1px solid var(--border-subtle); font-size: 13px; color: var(--text-primary); transition: background 0.2s; }
+        .autocomplete-item:hover { background-color: var(--accent-primary); color: white; }
         .autocomplete-item:last-child { border-bottom: none; }
-        .autocomplete-highlight { color: #58a6ff; font-weight: bold; }        
+        .autocomplete-highlight { color: var(--accent-blue); font-weight: bold; }        
         @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } .tabs { overflow-x: auto; white-space: nowrap; } }
 
         #login-overlay {
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
-            background-color: rgba(13, 17, 23, 0.95);
+            background-color: var(--login-overlay-bg);
             backdrop-filter: blur(5px);
             z-index: 9999;
             display: flex;
@@ -70,37 +176,37 @@
             align-items: center;
         }
         .login-box {
-            background-color: #161b22;
+            background-color: var(--bg-card);
             padding: 30px;
             border-radius: 12px;
-            border: 1px solid #30363d;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--login-box-shadow);
             text-align: center;
             width: 300px;
             box-sizing: border-box;
         }
         .login-box h2 {
             margin-top: 0;
-            color: #e0e0e0;
+            color: var(--text-heading);
         }
         .login-box input {
             width: 100%;
             padding: 10px;
             margin: 15px 0;
-            background-color: #0d1117;
-            border: 1px solid #30363d;
-            color: #e0e0e0;
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
             border-radius: 6px;
             box-sizing: border-box;
             outline: none;
         }
         .login-box input:focus {
-            border-color: #58a6ff;
+            border-color: var(--accent-blue);
         }
         .login-box button {
             width: 100%;
             padding: 10px;
-            background-color: #238636;
+            background-color: var(--btn-action);
             color: white;
             border: none;
             border-radius: 6px;
@@ -109,10 +215,10 @@
             font-size: 14px;
         }
         .login-box button:hover {
-            background-color: #2ea043;
+            background-color: var(--btn-action-hover);
         }
         #login-error {
-            color: #ff7b72;
+            color: var(--badge-loss-text);
             font-size: 13px;
             margin-top: 10px;
             display: none;
@@ -130,7 +236,16 @@
         </div>
     </div>
 
-    <h1 style="text-align: center; margin-bottom: 20px; font-weight: 800; letter-spacing: 1px;">🚀 戰情室 Dashboard</h1>
+    <div class="dashboard-header">
+        <div class="header-placeholder"></div>
+        <h1 class="header-title">🚀 戰情室 Dashboard</h1>
+        <div class="header-actions">
+            <button id="theme-toggle-btn" class="theme-toggle-btn" onclick="toggleTheme()" title="切換深色 / Solarized 淺色模式">
+                <span id="theme-toggle-icon">☀️</span>
+                <span id="theme-toggle-text">Solarized</span>
+            </button>
+        </div>
+    </div>
     
     <div class="tabs" id="nav-tabs">
         <button class="tab-btn" onclick="switchTab('tw_stock')">🇹🇼 台股</button>
@@ -144,13 +259,13 @@
     <div class="card" id="form-card" style="margin-bottom: 25px;">
         <h3 id="form-title" style="margin-top:0; margin-bottom: 20px;">➕ 新增交易紀錄</h3>
         
-        <div class="form-group" style="padding-bottom: 20px; border-bottom: 1px dashed #30363d; margin-bottom: 20px;">
+        <div class="form-group" style="padding-bottom: 20px; border-bottom: 1px dashed var(--border-dashed); margin-bottom: 20px;">
             <input type="datetime-local" id="trade-date" title="修改交易時間" style="display: none;">
             <select id="trade-type"><option value="buy">買入 (Buy)</option><option value="sell">賣出 (Sell)</option></select>
             
-            <div style="display: flex; align-items: center; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding-right: 5px; transition: 0.3s;" onmouseover="this.style.borderColor='#58a6ff'" onmouseout="this.style.borderColor='#30363d'">
-                <select id="trade-coin" onchange="toggleDeleteButton()" style="width: 140px; padding: 10px; border: none; background: #0d1117; color: #c9d1d9; outline: none; cursor: pointer;"></select>
-                <button id="delete-ticker-btn" onclick="deleteCustomTicker()" type="button" style="background: transparent; border: none; color: #8b949e; cursor: pointer; padding: 5px 8px; font-size: 14px; display: none; transition: 0.2s;" title="移除此自訂標的" onmouseover="this.style.color='#ff7b72'" onmouseout="this.style.color='#8b949e'">✖</button>
+            <div style="display: flex; align-items: center; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 6px; padding-right: 5px; transition: 0.3s;">
+                <select id="trade-coin" onchange="toggleDeleteButton()" style="width: 140px; padding: 10px; border: none; background: transparent; color: var(--text-primary); outline: none; cursor: pointer;"></select>
+                <button id="delete-ticker-btn" onclick="deleteCustomTicker()" type="button" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 5px 8px; font-size: 14px; display: none; transition: 0.2s;" title="移除此自訂標的">✖</button>
             </div>
 
             <input type="number" id="trade-amount" placeholder="數量 (例: 100)" step="any" style="width: 130px;">
@@ -159,9 +274,9 @@
         </div>
 
         <div style="display: flex; align-items: center; gap: 12px;">
-            <span style="font-size: 13px; color: #8b949e;">請直接輸入代號：</span>
-            <input type="text" id="new-ticker-input" placeholder="輸入代號 (例: AAPL, 00919)" autocomplete="off" style="width: 240px; padding: 10px 12px; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: #c9d1d9; outline: none;">
-            <button onclick="addNewTicker()" type="button" class="sort-btn" style="padding: 10px 18px; background: rgba(88, 166, 255, 0.1); border: 1px solid #58a6ff; color: #58a6ff; font-weight: bold;">➕ 加入選單</button>
+            <span style="font-size: 13px; color: var(--text-muted);">請直接輸入代號：</span>
+            <input type="text" id="new-ticker-input" placeholder="輸入代號 (例: AAPL, 00919)" autocomplete="off" style="width: 240px; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); outline: none;">
+            <button onclick="addNewTicker()" type="button" class="sort-btn" style="padding: 10px 18px; background: var(--accent-blue-bg); border: 1px solid var(--accent-blue); color: var(--accent-blue); font-weight: bold;">➕ 加入選單</button>
         </div>
     </div>
 
@@ -169,7 +284,7 @@
         <div class="card" style="min-width: 0;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <h3 style="margin-top:0;" id="summary-title">📊 資產與獲利明細</h3>
-                <span id="api-status" style="font-size: 12px; font-weight:bold; color: #8b949e; background: #21262d; padding: 6px 10px; border-radius: 4px;">⏳ 正在連線至雲端資料庫...</span>
+                <span id="api-status" style="font-size: 12px; font-weight:bold; color: var(--text-muted); background: var(--bg-btn); padding: 6px 10px; border-radius: 4px;">⏳ 正在連線至雲端資料庫...</span>
             </div>
             <div style="width: 100%; overflow-x: auto; padding-bottom: 5px; margin-top: 15px;">
                 <table style="width: 100%; min-width: max-content;">
@@ -178,10 +293,10 @@
                 </table>
             </div>
             
-            <div style="display: flex; justify-content: space-between; align-items: flex-end; padding-top: 15px; border-top: 1px solid #30363d; margin-top: 5px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; padding-top: 15px; border-top: 1px solid var(--border-color); margin-top: 5px;">
                 <div id="exchange-rate-container" style="text-align: left;">
-                    <div style="font-size: 12px; color: #8b949e; margin-bottom: 8px;">
-                        💱 雲端即時匯率：1 USD = <span id="current-ex-rate" style="color: #c9d1d9; font-weight: bold;">讀取中...</span> TWD
+                    <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">
+                        💱 雲端即時匯率：1 USD = <span id="current-ex-rate" style="color: var(--text-heading); font-weight: bold;">讀取中...</span> TWD
                     </div>
                     <div style="display: flex; gap: 10px;">
                         <button class="sort-btn" id="currency-toggle-btn" onclick="toggleGlobalCurrency()">🔄 切換為 TWD 計價</button>
@@ -190,8 +305,8 @@
                 </div>
 
                 <div class="summary-stats">
-                    <h2>總現值: <span id="total-value" class="total-number" style="color: #58a6ff;">$0.00</span> 
-                        <span id="exchange-note" style="font-size: 14px; color: #8b949e; font-weight:normal;">(以 USD 計價)</span>
+                    <h2>總現值: <span id="total-value" class="total-number" style="color: var(--accent-blue);">$0.00</span> 
+                        <span id="exchange-note" style="font-size: 14px; color: var(--text-muted); font-weight:normal;">(以 USD 計價)</span>
                     </h2>
                     <h3>未實現總損益: <span id="total-unrealized" class="badge neutral-badge">$0.00</span></h3>
                     <h3>累計已實現損益: <span id="total-realized" class="badge neutral-badge">$0.00</span></h3>
@@ -201,13 +316,13 @@
         
         <div class="card" style="display: flex; flex-direction: column; gap: 25px;">
             <div style="display: flex; justify-content: center; margin-bottom: 5px; z-index: 10;">
-                <button class="sort-btn" id="pie-mode-btn" onclick="togglePieChartMode()" style="display: none; padding: 6px 12px; font-size: 12px; border-color: #58a6ff; color: #58a6ff;">🔄 圓餅圖：看大類資產</button>
+                <button class="sort-btn" id="pie-mode-btn" onclick="togglePieChartMode()" style="display: none; padding: 6px 12px; font-size: 12px; border-color: var(--accent-blue); color: var(--accent-blue);">🔄 圓餅圖：看大類資產</button>
             </div>
 
             <div style="width: 100%;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                    <h3 style="margin: 0; font-size: 16px; color: #e0e0e0;">📊 現值佔比分佈</h3>
-                    <label style="font-size: 12px; color: #8b949e; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                    <h3 style="margin: 0; font-size: 16px; color: var(--text-heading);">📊 現值佔比分佈</h3>
+                    <label style="font-size: 12px; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; gap: 4px;">
                         <input type="checkbox" id="show-cash-toggle" onchange="toggleShowCash()" checked>
                         <span>含現金</span>
                     </label>
@@ -215,18 +330,18 @@
                 <div style="width: 100%; max-width: 250px; margin: 0 auto; position: relative;">
                     <canvas id="portfolioChart" style="position: relative; z-index: 2;"></canvas>
                     <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; width: 80%; z-index: 1;">
-                        <div style="font-size: 11px; color: #8b949e; margin-bottom: 2px;">總現值</div>
-                        <div style="font-size: 15px; font-weight: bold; color: #e0e0e0; margin-bottom: 2px;" id="portfolio-center-main">-</div>
-                        <div style="font-size: 11px; color: #8b949e;" id="portfolio-center-alt">-</div>
+                        <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 2px;">總現值</div>
+                        <div style="font-size: 15px; font-weight: bold; color: var(--text-heading); margin-bottom: 2px;" id="portfolio-center-main">-</div>
+                        <div style="font-size: 11px; color: var(--text-muted);" id="portfolio-center-alt">-</div>
                     </div>
                 </div>
-                <div id="portfolio-legend" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 12px; margin: 10px auto 0; max-width: 250px; font-size: 13px; color: #c9d1d9;"></div>
+                <div id="portfolio-legend" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 12px; margin: 10px auto 0; max-width: 250px; font-size: 13px; color: var(--text-primary);"></div>
             </div>
-            <div style="width: 100%; height: 1px; background-color: #30363d;"></div>
+            <div style="width: 100%; height: 1px; background-color: var(--border-color);"></div>
             <div style="width: 100%;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                    <h3 style="margin: 0; font-size: 16px; color: #e0e0e0;">💰 投入資金佔比</h3>
-                    <label style="font-size: 12px; color: #8b949e; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                    <h3 style="margin: 0; font-size: 16px; color: var(--text-heading);">💰 投入資金佔比</h3>
+                    <label style="font-size: 12px; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; gap: 4px;">
                         <input type="checkbox" id="show-cost-cash-toggle" onchange="toggleShowCostCash()" checked>
                         <span>含現金</span>
                     </label>
@@ -234,12 +349,12 @@
                 <div style="width: 100%; max-width: 250px; margin: 0 auto; position: relative;">
                     <canvas id="costChart" style="position: relative; z-index: 2;"></canvas>
                     <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; width: 80%; z-index: 1;">
-                        <div style="font-size: 11px; color: #8b949e; margin-bottom: 2px;">總成本</div>
-                        <div style="font-size: 15px; font-weight: bold; color: #e0e0e0; margin-bottom: 2px;" id="cost-center-main">-</div>
-                        <div style="font-size: 11px; color: #8b949e;" id="cost-center-alt">-</div>
+                        <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 2px;">總成本</div>
+                        <div style="font-size: 15px; font-weight: bold; color: var(--text-heading); margin-bottom: 2px;" id="cost-center-main">-</div>
+                        <div style="font-size: 11px; color: var(--text-muted);" id="cost-center-alt">-</div>
                     </div>
                 </div>
-                <div id="cost-legend" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 12px; margin: 10px auto 0; max-width: 250px; font-size: 13px; color: #c9d1d9;"></div>
+                <div id="cost-legend" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 12px; margin: 10px auto 0; max-width: 250px; font-size: 13px; color: var(--text-primary);"></div>
             </div>
         </div>
     </div>
@@ -247,16 +362,16 @@
     <div id="simulator-container" style="display: none;">
         
         <div class="card" style="margin-bottom: 25px;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 20px; border-bottom: 1px solid #30363d; flex-wrap: wrap; gap: 15px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 20px; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; gap: 15px;">
                 <div>
                     <h3 style="margin: 0 0 10px 0; display: flex; align-items: center; gap: 10px;">
                         🔮 財富模擬器 (What-If Simulator)
-                        <button onclick="resetSimulator()" style="font-size: 12px; padding: 4px 10px; background: transparent; color: #8b949e; border: 1px solid #30363d; border-radius: 12px; cursor: pointer; transition: 0.2s;" onmouseover="this.style.color='#c9d1d9'; this.style.borderColor='#8b949e'" onmouseout="this.style.color='#8b949e'; this.style.borderColor='#30363d'">🔄 重設為目前市價</button>
+                        <button onclick="resetSimulator()" style="font-size: 12px; padding: 4px 10px; background: transparent; color: var(--text-muted); border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer; transition: 0.2s;" onmouseover="this.style.color='var(--text-heading)'; this.style.borderColor='var(--text-muted)'" onmouseout="this.style.color='var(--text-muted)'; this.style.borderColor='var(--border-color)'">🔄 重設為目前市價</button>
                     </h3>
-                    <div style="font-size: 13px; color: #8b949e;">修改下方資產的「預期目標價」，立刻試算未來的財富變化！</div>
+                    <div style="font-size: 13px; color: var(--text-muted);">修改下方資產的「預期目標價」，立刻試算未來的財富變化！</div>
                 </div>
                 <div class="summary-stats">
-                    <h2>模擬總現值: <span id="sim-total-value" class="total-number" style="color: #58a6ff;">$0.00</span></h2>
+                    <h2>模擬總現值: <span id="sim-total-value" class="total-number" style="color: var(--accent-blue);">$0.00</span></h2>
                     <h3>預期獲利差距: <span id="sim-diff-value" class="badge neutral-badge">$0.00</span></h3>
                 </div>
             </div>
@@ -287,14 +402,14 @@
             <h3 style="margin: 0; display: flex; align-items: center; gap: 10px;">📈 總資產走勢 (Trend) <span id="trend-roi-badge" style="font-size: 13px; font-weight: normal; padding: 4px 8px; border-radius: 6px; display: none;"></span></h3>
             <div style="display: flex; gap: 8px;">
                 <div style="position: relative;" id="custom-legend-container">
-                    <button onclick="toggleLegendMenu()" style="padding: 6px 10px; font-size: 13px; border-radius: 6px; border: 1px solid #30363d; background: #21262d; color: #c9d1d9; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                    <button onclick="toggleLegendMenu()" style="padding: 6px 10px; font-size: 13px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-btn); color: var(--text-primary); cursor: pointer; display: flex; align-items: center; gap: 6px;">
                         👁️ 圖層
                     </button>
-                    <div id="legend-dropdown" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 5px; background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 12px; min-width: 180px; z-index: 1000; box-shadow: 0 8px 24px rgba(0,0,0,0.4);">
+                    <div id="legend-dropdown" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 5px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; min-width: 180px; z-index: 1000; box-shadow: var(--card-shadow);">
                         <!-- Legend items injected via JS -->
                     </div>
                 </div>
-                <select id="trend-time-filter" onchange="updateTrendChart()" style="padding: 6px 10px; font-size: 13px; border-radius: 6px; border: 1px solid #30363d; background: #21262d; color: #c9d1d9; outline: none; cursor: pointer;">
+                <select id="trend-time-filter" onchange="updateTrendChart()" style="padding: 6px 10px; font-size: 13px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-btn); color: var(--text-primary); outline: none; cursor: pointer;">
                     <option value="all">全部時間</option>
                     <option value="1d">一天</option>
                     <option value="1w">一週</option>
@@ -314,13 +429,13 @@
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
             <h3 style="margin:0;">📜 交易歷史 (Log)</h3>
             <div style="display: flex; gap: 10px; align-items: center;">
-                <select id="history-category-filter" onchange="resetHistoryCoinFilter(); renderDashboardUI()" style="display: none; padding: 6px 10px; font-size: 13px; border-radius: 6px; border: 1px solid #30363d; background: #21262d; color: #c9d1d9; outline: none; cursor: pointer;">
+                <select id="history-category-filter" onchange="resetHistoryCoinFilter(); renderDashboardUI()" style="display: none; padding: 6px 10px; font-size: 13px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-btn); color: var(--text-primary); outline: none; cursor: pointer;">
                     <option value="all">全部類別</option>
                     <option value="tw_stock">台股</option>
                     <option value="us_stock">美股</option>
                     <option value="crypto">加密貨幣</option>
                 </select>
-                <select id="history-filter" onchange="renderDashboardUI()" style="padding: 6px 10px; font-size: 13px; border-radius: 6px; border: 1px solid #30363d; background: #21262d; color: #c9d1d9; outline: none; cursor: pointer;">
+                <select id="history-filter" onchange="renderDashboardUI()" style="padding: 6px 10px; font-size: 13px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-btn); color: var(--text-primary); outline: none; cursor: pointer;">
                     <option value="all">全部標的</option>
                 </select>
                 <button class="sort-btn" id="history-currency-btn" onclick="toggleHistoryCurrency()">💱 切換</button>
@@ -362,6 +477,48 @@
         let showCashInCostChart = localStorage.getItem('wealthShowCashInCost') ? JSON.parse(localStorage.getItem('wealthShowCashInCost')) : true;
         let trendRoiMode = localStorage.getItem('wealthTrendRoiMode') || 'unrealized';
         let wealthPwd = localStorage.getItem('wealthPwd') || '';
+        let currentTheme = localStorage.getItem('wealthTheme') || 'dark';
+
+        function initTheme() {
+            if (currentTheme === 'solarized-light') {
+                document.documentElement.setAttribute('data-theme', 'solarized-light');
+                updateThemeToggleUI('solarized-light');
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+                updateThemeToggleUI('dark');
+            }
+        }
+
+        function updateThemeToggleUI(theme) {
+            const iconEl = document.getElementById('theme-toggle-icon');
+            const textEl = document.getElementById('theme-toggle-text');
+            if (!iconEl || !textEl) return;
+            if (theme === 'solarized-light') {
+                iconEl.innerText = '🌙';
+                textEl.innerText = '深色模式';
+            } else {
+                iconEl.innerText = '☀️';
+                textEl.innerText = 'Solarized';
+            }
+        }
+
+        function toggleTheme() {
+            currentTheme = currentTheme === 'dark' ? 'solarized-light' : 'dark';
+            localStorage.setItem('wealthTheme', currentTheme);
+            if (currentTheme === 'solarized-light') {
+                document.documentElement.setAttribute('data-theme', 'solarized-light');
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+            }
+            updateThemeToggleUI(currentTheme);
+            
+            if (currentTab === 'simulator') {
+                renderSimulatorUI();
+            } else {
+                renderDashboardUI();
+            }
+        }
+        initTheme();
 
         function attemptLogin() {
             const input = document.getElementById('pwd-input').value;
@@ -435,9 +592,9 @@
         function setStatus(msg, type) {
             const el = document.getElementById('api-status');
             el.innerHTML = msg;
-            if(type === 'loading') el.style.color = '#f7931a';
-            if(type === 'success') el.style.color = '#3fb950';
-            if(type === 'error') el.style.color = '#ff7b72';
+            if(type === 'loading') el.style.color = currentTheme === 'solarized-light' ? '#b58900' : '#f7931a';
+            if(type === 'success') el.style.color = 'var(--badge-profit-text)';
+            if(type === 'error') el.style.color = 'var(--badge-loss-text)';
         }
 
         function updateCoinDropdown(category) {
@@ -914,8 +1071,8 @@
             if (hideBtn) {
                 let isHidden = tabHideZero[currentTab];
                 hideBtn.innerText = isHidden ? '🙉 顯示未持有標的' : '🙈 隱藏未持有標的';
-                hideBtn.style.color = isHidden ? '#58a6ff' : '#c9d1d9';
-                hideBtn.style.borderColor = isHidden ? '#58a6ff' : '#30363d';
+                hideBtn.style.color = isHidden ? 'var(--accent-blue)' : 'var(--text-primary)';
+                hideBtn.style.borderColor = isHidden ? 'var(--accent-blue)' : 'var(--border-color)';
             }
 
             let filteredTrades = currentTab === 'all' ? [...trades] : trades.filter(t => t.category === currentTab);
@@ -1028,16 +1185,16 @@
                     let pnlSign = logRealized > 0 ? '+' : '';
                     pnlBadge = `<span class="badge ${pnlClass}">${pnlSign}${formatMoney(logRealized, 2, logCurrency)}</span>`;
                 }
-                let typeBadge = t.type === 'buy' ? '<span style="color:#3fb950; font-weight:bold;">買入</span>' : '<span style="color:#ff7b72; font-weight:bold;">賣出</span>';
+                let typeBadge = t.type === 'buy' ? '<span style="color:var(--badge-profit-text); font-weight:bold;">買入</span>' : '<span style="color:var(--badge-loss-text); font-weight:bold;">賣出</span>';
                 let categoryCellHTML = currentTab === 'all' ? `<td><span class="tag-badge">${categoryNames[t.category] || t.category}</span></td>` : '';
                 let actionCellHTML = currentTab === 'all' ? '' : `<td style="text-align: center;">
-                    <button onclick="editTrade('${t.id}')" style="background:transparent; color:#58a6ff; border:1px solid #58a6ff; padding:4px 8px; font-size:12px; margin-bottom: 2px; cursor:pointer;">修改</button>
-                    <button onclick="deleteTrade('${t.id}')" style="background:transparent; color:#ff7b72; border:1px solid #ff7b72; padding:4px 8px; font-size:12px; cursor:pointer;">刪除</button>
+                    <button onclick="editTrade('${t.id}')" style="background:transparent; color:var(--accent-blue); border:1px solid var(--accent-blue); padding:4px 8px; font-size:12px; margin-bottom: 2px; cursor:pointer;">修改</button>
+                    <button onclick="deleteTrade('${t.id}')" style="background:transparent; color:var(--badge-loss-text); border:1px solid var(--badge-loss-text); padding:4px 8px; font-size:12px; cursor:pointer;">刪除</button>
                 </td>`;
 
                 if (t.id === editingId) {
                     let formattedDate = formatInputDate(t.date);
-                    let inputStyle = 'padding: 4px; border-radius: 4px; border: 1px solid #30363d; background: #0d1117; color: #c9d1d9; font-size: 12px;';
+                    let inputStyle = 'padding: 4px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 12px;';
                     let typeHtml = `<select id="edit-type-${t.id}" style="${inputStyle}"><option value="buy" ${t.type==='buy'?'selected':''}>買入</option><option value="sell" ${t.type==='sell'?'selected':''}>賣出</option></select>`;
                     
                     let allOptions = [];
@@ -1053,7 +1210,7 @@
                         allOptions.map(opt => `<option value="${opt.value}" ${opt.value === t.coin ? 'selected' : ''}>${opt.value}</option>`).join('') + 
                         `</select>`;
 
-                    return `<tr style="background-color: rgba(88, 166, 255, 0.1);">
+                    return `<tr style="background-color: var(--accent-blue-bg);">
                         <td><input type="datetime-local" id="edit-date-${t.id}" value="${formattedDate}" style="${inputStyle} width: 210px;"></td>
                         <td>${typeHtml}</td>
                         <td>${coinHtml}</td>
@@ -1063,15 +1220,15 @@
                         <td>-</td>
                         <td>-</td>
                         <td style="text-align: center;">
-                            <button onclick="saveInlineEdit('${t.id}')" style="background:#238636; color:white; border:none; padding:4px 8px; font-size:12px; border-radius:4px; margin-bottom:2px; cursor:pointer;">儲存</button>
+                            <button onclick="saveInlineEdit('${t.id}')" style="background:var(--btn-action); color:white; border:none; padding:4px 8px; font-size:12px; border-radius:4px; margin-bottom:2px; cursor:pointer;">儲存</button>
                             <br>
-                            <button onclick="cancelEdit()" style="background:#30363d; color:white; border:none; padding:4px 8px; font-size:12px; border-radius:4px; cursor:pointer;">取消</button>
+                            <button onclick="cancelEdit()" style="background:var(--bg-btn); color:var(--text-primary); border:1px solid var(--border-color); padding:4px 8px; font-size:12px; border-radius:4px; cursor:pointer;">取消</button>
                         </td>
                     </tr>`;
                 }
 
                 return `<tr>
-                    <td style="color:#8b949e; font-size:12px;">${formatDisplayDate(t.date)}</td>
+                    <td style="color:var(--text-muted); font-size:12px;">${formatDisplayDate(t.date)}</td>
                     <td>${typeBadge}</td>
                     <td class="coin-name">${t.coin}</td>
                     ${categoryCellHTML}
@@ -1081,7 +1238,7 @@
                     <td>${pnlBadge}</td>
                     ${actionCellHTML}
                 </tr>`;
-            }).join('') || `<tr><td colspan="8" style="text-align:center; color:#8b949e; padding: 20px;">尚無相關紀錄</td></tr>`;
+            }).join('') || `<tr><td colspan="8" style="text-align:center; color:var(--text-muted); padding: 20px;">尚無相關紀錄</td></tr>`;
 
             let totalValue = 0, totalUnrealizedPnl = 0, totalRealizedPnl = 0, totalOriginalCost = 0;
             let chartRawLabels = [], chartData = [], chartColors = [];
@@ -1168,7 +1325,7 @@
                 let realizedBadge = `<span class="badge ${displayRealized > 0 ? 'profit-badge' : (displayRealized < 0 ? 'loss-badge' : 'neutral-badge')}">${displayRealized > 0 ? '+' : ''}${formatMoney(displayRealized, 2, rowCurrency)}</span>`;
                 let displayCatBadgeHTML = currentTab === 'all' ? `<span class="tag-badge" style="font-weight:normal; font-size:10px;">${categoryNames[portfolio[coin].category]}</span>` : '';
                 let precision = (coin === 'NIGHT') ? 5 : ((coin === 'BTC' || coin === 'ETH' || rowCurrency === 'TWD' || portfolio[coin].category === 'us_stock') ? 2 : 4);
-                let priceDisplay = isAwaitingAPI ? `<span title="等待同步..." style="color:#8b949e;">${formatMoney(displayPrice, precision, rowCurrency)} ⏳</span>` : formatMoney(displayPrice, precision, rowCurrency);
+                let priceDisplay = isAwaitingAPI ? `<span title="等待同步..." style="color:var(--text-muted);">${formatMoney(displayPrice, precision, rowCurrency)} ⏳</span>` : formatMoney(displayPrice, precision, rowCurrency);
 
                 if (!(tabHideZero[currentTab] && portfolio[coin].amt <= 0)) {
                     summaryHTML += `<tr>
@@ -1176,7 +1333,7 @@
                         <td>${formatAmount(portfolio[coin].amt)}</td>
                         <td>${formatMoney(displayAvgCost, precision, rowCurrency)}</td>
                         <td>${priceDisplay}</td>
-                        <td style="font-weight:bold; color:#fff;">${formatMoney(displayValue, 2, rowCurrency)}</td>
+                        <td style="font-weight:bold; color:var(--text-heading);">${formatMoney(displayValue, 2, rowCurrency)}</td>
                         <td>${unrealizedCell}</td>
                         <td>${realizedBadge}</td>
                     </tr>`;
@@ -1208,11 +1365,11 @@
                     <td>-</td>
                     <td>-</td>
                     <td>-</td>
-                    <td style="font-weight:bold; color:#fff;">
+                    <td style="font-weight:bold; color:var(--text-heading);">
                         <div style="display:flex; flex-direction:column; align-items:flex-end;">
                             <input type="number" value="${stableCoinUSD}" onchange="updateStableCoinValue(this.value)" placeholder="輸入數量 (USD)" 
                                    style="width: 150px; padding: 4px 8px; border-radius: 4px; border: 1px dashed #26a17b; background: transparent; color: #26a17b; font-weight: bold; text-align: right; outline: none; font-family: 'Courier New', Courier, monospace;">
-                            <span style="font-size:11px; color:#8b949e; font-weight:normal; margin-top:4px;">${convertedStableStr}</span>
+                            <span style="font-size:11px; color:var(--text-muted); font-weight:normal; margin-top:4px;">${convertedStableStr}</span>
                         </div>
                     </td>
                     <td>-</td>
@@ -1245,11 +1402,11 @@
                     <td>-</td>
                     <td>-</td>
                     <td>-</td>
-                    <td style="font-weight:bold; color:#fff;">
+                    <td style="font-weight:bold; color:var(--text-heading);">
                         <div style="display:flex; flex-direction:column; align-items:flex-end;">
                             <input type="number" value="${cashUSD}" onchange="updateCashUSDValue(this.value)" placeholder="輸入美金現金" 
                                    style="width: 150px; padding: 4px 8px; border-radius: 4px; border: 1px dashed #2ea043; background: transparent; color: #2ea043; font-weight: bold; text-align: right; outline: none; font-family: 'Courier New', Courier, monospace;">
-                            <span style="font-size:11px; color:#8b949e; font-weight:normal; margin-top:4px;">${convertedUSDStr}</span>
+                            <span style="font-size:11px; color:var(--text-muted); font-weight:normal; margin-top:4px;">${convertedUSDStr}</span>
                         </div>
                     </td>
                     <td>-</td>
@@ -1280,11 +1437,11 @@
                     <td>-</td>
                     <td>-</td>
                     <td>-</td>
-                    <td style="font-weight:bold; color:#fff;">
+                    <td style="font-weight:bold; color:var(--text-heading);">
                         <div style="display:flex; flex-direction:column; align-items:flex-end;">
                             <input type="number" value="${cashTWD}" onchange="updateCashValue(this.value)" placeholder="輸入台幣現金" 
                                    style="width: 150px; padding: 4px 8px; border-radius: 4px; border: 1px dashed #3fb950; background: transparent; color: #3fb950; font-weight: bold; text-align: right; outline: none; font-family: 'Courier New', Courier, monospace;">
-                            <span style="font-size:11px; color:#8b949e; font-weight:normal; margin-top:4px;">${convertedStr}</span>
+                            <span style="font-size:11px; color:var(--text-muted); font-weight:normal; margin-top:4px;">${convertedStr}</span>
                         </div>
                     </td>
                     <td>-</td>
@@ -1292,7 +1449,7 @@
                 </tr>`;
             }
 
-            document.getElementById('summary-body').innerHTML = summaryHTML || `<tr><td colspan="7" style="text-align:center; color:#8b949e; padding: 30px;">尚無持倉資料。</td></tr>`;
+            document.getElementById('summary-body').innerHTML = summaryHTML || `<tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding: 30px;">尚無持倉資料。</td></tr>`;
 
             let athVal = 0;
             if (snapshots.length > 0) {
@@ -1355,7 +1512,7 @@
             }
 
             if(chartData.length === 0) {
-                chartRawLabels = ['無資料']; chartData = [1]; chartColors = ['#21262d']; costData = [1]; totalValue = 1; totalCost = 1;
+                chartRawLabels = ['無資料']; chartData = [1]; chartColors = [currentTheme === 'solarized-light' ? '#e4ddc8' : '#21262d']; costData = [1]; totalValue = 1; totalCost = 1;
             }
 
             let filteredValLabels = [], filteredValData = [], filteredValColors = [], filteredTotalVal = 0;
@@ -1369,7 +1526,7 @@
                 filteredTotalVal += chartData[index];
             });
             if(filteredValData.length === 0) {
-                filteredValLabels = ['無資料']; filteredValData = [1]; filteredValColors = ['#21262d']; filteredTotalVal = 1;
+                filteredValLabels = ['無資料']; filteredValData = [1]; filteredValColors = [currentTheme === 'solarized-light' ? '#e4ddc8' : '#21262d']; filteredTotalVal = 1;
             }
 
             let labelsWithPercentageVal = filteredValLabels.map((coin, index) => {
@@ -1386,11 +1543,45 @@
             });
             document.getElementById('portfolio-legend').innerHTML = valLegendHTML;
 
+            const isLightMode = currentTheme === 'solarized-light';
+            const doughnutBorder = isLightMode ? '#eee8d5' : '#161b22';
+            const tooltipBg = isLightMode ? '#fdf6e3' : '#0d1117';
+            const tooltipText = isLightMode ? '#073642' : '#c9d1d9';
+            const tooltipBorder = isLightMode ? '#d5ccb6' : '#30363d';
+
             const ctxVal = document.getElementById('portfolioChart').getContext('2d');
             if(chartInstance) chartInstance.destroy();
             chartInstance = new Chart(ctxVal, {
-                type: 'doughnut', data: { labels: labelsWithPercentageVal, datasets: [{ data: filteredValData, backgroundColor: filteredValColors, borderColor: '#161b22', borderWidth: 3 }] },
-                options: { aspectRatio: 1, responsive: true, plugins: { title: { display: false }, legend: { display: false }, tooltip: { backgroundColor: '#0d1117', callbacks: { title: function() { return null; }, label: function(c) { return c.label.includes('無資料') ? ' 尚無資產' : c.label; }, afterBody: function(items) { let c = items[0]; if(c.label.includes('無資料')) return ''; let mainVal = formatMoney(c.parsed, 2, totalCurrency); let altVal = totalCurrency === 'TWD' ? formatMoney(c.parsed / currentExchangeRate, 2, 'USD') : formatMoney(c.parsed * currentExchangeRate, 2, 'TWD'); return `${mainVal} (≈ ${altVal})`; } } } }, animation: { duration: 0 }, cutout: '65%', layout: { padding: { top: 5, bottom: 5 } } }
+                type: 'doughnut', data: { labels: labelsWithPercentageVal, datasets: [{ data: filteredValData, backgroundColor: filteredValColors, borderColor: doughnutBorder, borderWidth: 3 }] },
+                options: { 
+                    aspectRatio: 1, 
+                    responsive: true, 
+                    plugins: { 
+                        title: { display: false }, 
+                        legend: { display: false }, 
+                        tooltip: { 
+                            backgroundColor: tooltipBg,
+                            titleColor: tooltipText,
+                            bodyColor: tooltipText,
+                            borderColor: tooltipBorder,
+                            borderWidth: 1,
+                            callbacks: { 
+                                title: function() { return null; }, 
+                                label: function(c) { return c.label.includes('無資料') ? ' 尚無資產' : c.label; }, 
+                                afterBody: function(items) { 
+                                    let c = items[0]; 
+                                    if(c.label.includes('無資料')) return ''; 
+                                    let mainVal = formatMoney(c.parsed, 2, totalCurrency); 
+                                    let altVal = totalCurrency === 'TWD' ? formatMoney(c.parsed / currentExchangeRate, 2, 'USD') : formatMoney(c.parsed * currentExchangeRate, 2, 'TWD'); 
+                                    return `${mainVal} (≈ ${altVal})`; 
+                                } 
+                            } 
+                        } 
+                    }, 
+                    animation: { duration: 0 }, 
+                    cutout: '65%', 
+                    layout: { padding: { top: 5, bottom: 5 } } 
+                }
             });
 
             let filteredCostLabels = [], filteredCostData = [], filteredCostColors = [], filteredTotalCost = 0;
@@ -1404,7 +1595,7 @@
                 }
             });
             if(filteredCostData.length === 0) {
-                filteredCostLabels = ['無資料']; filteredCostData = [1]; filteredCostColors = ['#21262d']; filteredTotalCost = 1;
+                filteredCostLabels = ['無資料']; filteredCostData = [1]; filteredCostColors = [isLightMode ? '#e4ddc8' : '#21262d']; filteredTotalCost = 1;
             }
 
             let labelsWithPercentageCost = filteredCostLabels.map((coin, index) => {
@@ -1424,8 +1615,36 @@
             const ctxCost = document.getElementById('costChart').getContext('2d');
             if(costChartInstance) costChartInstance.destroy();
             costChartInstance = new Chart(ctxCost, {
-                type: 'doughnut', data: { labels: labelsWithPercentageCost, datasets: [{ data: filteredCostData, backgroundColor: filteredCostColors, borderColor: '#161b22', borderWidth: 3 }] },
-                options: { aspectRatio: 1, responsive: true, plugins: { title: { display: false }, legend: { display: false }, tooltip: { backgroundColor: '#0d1117', callbacks: { title: function() { return null; }, label: function(c) { return c.label.includes('無資料') ? ' 尚無資產' : c.label; }, afterBody: function(items) { let c = items[0]; if(c.label.includes('無資料')) return ''; let mainVal = formatMoney(c.parsed, 2, totalCurrency); let altVal = totalCurrency === 'TWD' ? formatMoney(c.parsed / currentExchangeRate, 2, 'USD') : formatMoney(c.parsed * currentExchangeRate, 2, 'TWD'); return `${mainVal} (≈ ${altVal})`; } } } }, animation: { duration: 0 }, cutout: '65%', layout: { padding: { top: 5, bottom: 5 } } }
+                type: 'doughnut', data: { labels: labelsWithPercentageCost, datasets: [{ data: filteredCostData, backgroundColor: filteredCostColors, borderColor: doughnutBorder, borderWidth: 3 }] },
+                options: { 
+                    aspectRatio: 1, 
+                    responsive: true, 
+                    plugins: { 
+                        title: { display: false }, 
+                        legend: { display: false }, 
+                        tooltip: { 
+                            backgroundColor: tooltipBg,
+                            titleColor: tooltipText,
+                            bodyColor: tooltipText,
+                            borderColor: tooltipBorder,
+                            borderWidth: 1,
+                            callbacks: { 
+                                title: function() { return null; }, 
+                                label: function(c) { return c.label.includes('無資料') ? ' 尚無資產' : c.label; }, 
+                                afterBody: function(items) { 
+                                    let c = items[0]; 
+                                    if(c.label.includes('無資料')) return ''; 
+                                    let mainVal = formatMoney(c.parsed, 2, totalCurrency); 
+                                    let altVal = totalCurrency === 'TWD' ? formatMoney(c.parsed / currentExchangeRate, 2, 'USD') : formatMoney(c.parsed * currentExchangeRate, 2, 'TWD'); 
+                                    return `${mainVal} (≈ ${altVal})`; 
+                                } 
+                            } 
+                        } 
+                    }, 
+                    animation: { duration: 0 }, 
+                    cutout: '65%', 
+                    layout: { padding: { top: 5, bottom: 5 } } 
+                }
             });
 
             let displayPortfolioVal = filteredValLabels[0] === '無資料' ? 0 : filteredTotalVal;
@@ -1674,7 +1893,7 @@
                     {
                         label: '累積投入本金',
                         data: sortedSnaps.map(s => globalCurrency === 'USD' ? s.hist_cost_usd : s.hist_cost_twd),
-                        borderColor: '#ffffff',
+                        borderColor: currentTheme === 'solarized-light' ? '#586e75' : '#ffffff',
                         borderDash: [5, 5],
                         borderWidth: 2,
                         fill: false,
@@ -1688,7 +1907,7 @@
                     {
                         label: '總資產',
                         data: sortedSnaps.map(s => globalCurrency === 'USD' ? s.total_usd : s.total_twd),
-                        borderColor: '#58a6ff',
+                        borderColor: currentTheme === 'solarized-light' ? '#268bd2' : '#58a6ff',
                         borderWidth: 2,
                         fill: false,
                         tension: 0.2,
@@ -1738,7 +1957,7 @@
                 {
                     label: '累積投入本金',
                     data: sortedSnaps.map(s => s[costDataKey] || 0),
-                    borderColor: '#ffffff',
+                    borderColor: currentTheme === 'solarized-light' ? '#586e75' : '#ffffff',
                     borderDash: [5, 5],
                     borderWidth: 2,
                     fill: false,
@@ -1843,7 +2062,7 @@
                                     ctx.fillStyle = stringToColor(t.coin);
                                     ctx.fill();
                                     ctx.lineWidth = 2;
-                                    ctx.strokeStyle = t.type === 'buy' ? '#3fb950' : '#ff7b72';
+                                    ctx.strokeStyle = t.type === 'buy' ? (currentTheme === 'solarized-light' ? '#859900' : '#3fb950') : (currentTheme === 'solarized-light' ? '#dc322f' : '#ff7b72');
                                     ctx.stroke();
                                     ctx.restore();
                                 }
@@ -1872,6 +2091,11 @@
                             display: false
                         }, 
                         tooltip: { 
+                            backgroundColor: currentTheme === 'solarized-light' ? '#fdf6e3' : '#0d1117',
+                            titleColor: currentTheme === 'solarized-light' ? '#073642' : '#c9d1d9',
+                            bodyColor: currentTheme === 'solarized-light' ? '#073642' : '#c9d1d9',
+                            borderColor: currentTheme === 'solarized-light' ? '#d5ccb6' : '#30363d',
+                            borderWidth: 1,
                             filter: function(tooltipItem) {
                                 return tooltipItem.dataset.label !== '買入紀錄' && tooltipItem.dataset.label !== '賣出紀錄';
                             },
@@ -1966,8 +2190,16 @@
                         } 
                     },
                     scales: {
-                        x: { stacked: currentTab === 'all', grid: { color: '#30363d' }, ticks: { color: '#8b949e', maxTicksLimit: 7 } },
-                        y: { stacked: currentTab === 'all', grid: { color: '#30363d' }, ticks: { color: '#8b949e' } }
+                        x: { 
+                            stacked: currentTab === 'all', 
+                            grid: { color: currentTheme === 'solarized-light' ? '#d5ccb6' : '#30363d' }, 
+                            ticks: { color: currentTheme === 'solarized-light' ? '#657b83' : '#8b949e', maxTicksLimit: 7 } 
+                        },
+                        y: { 
+                            stacked: currentTab === 'all', 
+                            grid: { color: currentTheme === 'solarized-light' ? '#d5ccb6' : '#30363d' }, 
+                            ticks: { color: currentTheme === 'solarized-light' ? '#657b83' : '#8b949e' } 
+                        }
                     }
                 }
             });
@@ -2020,11 +2252,11 @@
                 
                 let tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td style="font-weight: bold; color: #c9d1d9;">${coin} <span class="badge ${cat}-badge">${categoryNames[cat]}</span></td>
+                    <td style="font-weight: bold; color: var(--text-primary);">${coin} <span class="badge ${cat}-badge">${categoryNames[cat]}</span></td>
                     <td>${qty.toLocaleString(undefined, {maximumFractionDigits: 6})}</td>
-                    <td style="color: #8b949e;">${currentPrice.toLocaleString('en-US', {minimumFractionDigits: precision, maximumFractionDigits: precision})}</td>
+                    <td style="color: var(--text-muted);">${currentPrice.toLocaleString('en-US', {minimumFractionDigits: precision, maximumFractionDigits: precision})}</td>
                     <td style="display: flex; gap: 5px; align-items: center; border-bottom: none;">
-                        <input type="text" inputmode="decimal" class="sim-target-price" data-coin="${coin}" data-qty="${qty}" data-cat="${cat}" data-realprice="${safeCurrentPrice}" data-cost="${cost}" value="${displayValue}" oninput="updateSimulatorTotals()" style="width: 120px; padding: 6px; border-radius: 4px; border: 1px solid #58a6ff; background: #0d1117; color: #c9d1d9; outline: none; font-weight: bold;">
+                        <input type="text" inputmode="decimal" class="sim-target-price" data-coin="${coin}" data-qty="${qty}" data-cat="${cat}" data-realprice="${safeCurrentPrice}" data-cost="${cost}" value="${displayValue}" oninput="updateSimulatorTotals()" style="width: 120px; padding: 6px; border-radius: 4px; border: 1px solid var(--accent-blue); background: var(--bg-input); color: var(--text-primary); outline: none; font-weight: bold;">
                     </td>
                     <td class="sim-row-value" style="font-weight: bold;">$0.00</td>
                     <td class="sim-row-profit" style="font-weight: bold;">$0.00</td>
@@ -2086,7 +2318,7 @@
                 if (Math.abs(profit) < 0.0001) profit = 0;
                 
                 let profitSign = profit >= 0 ? '+' : '';
-                let profitColor = profit >= 0 ? '#3fb950' : '#f85149';
+                let profitColor = profit >= 0 ? 'var(--badge-profit-text)' : 'var(--badge-loss-text)';
                 let profitPct = costVal > 0 ? (profit / costVal * 100) : 0;
                 profitTd.innerHTML = `<span style="color: ${profitColor};">${profitSign}${nativePrefix}${Math.abs(profit).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} (${profitSign}${profitPct.toFixed(2)}%)</span>`;
             });
@@ -2097,7 +2329,7 @@
             let diffPct = currentRealTotal > 0 ? (diffTotal / currentRealTotal * 100) : 0;
             
             let diffSign = diffTotal >= 0 ? '+' : '';
-            let diffColor = diffTotal >= 0 ? '#3fb950' : '#f85149';
+            let diffColor = diffTotal >= 0 ? 'var(--badge-profit-text)' : 'var(--badge-loss-text)';
             let prefix = globalCurrency === 'USD' ? '$' : 'NT$';
             
             document.getElementById('sim-total-value').innerHTML = `${prefix}${simTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} <span style="color: ${diffColor}; font-size: 0.85em;">(${diffSign}${diffPct.toFixed(2)}%)</span>`;
@@ -2105,7 +2337,7 @@
         }
 
         window.onload = () => {
-
+            initTheme();
             if (!wealthPwd) {
                 showLogin();
             } else {
@@ -2135,14 +2367,14 @@
             
             // Helper to render a group of checkboxes
             const renderGroup = (title, matchNames) => {
-                let groupHtml = `<div style="font-size: 11px; color: #8b949e; margin-bottom: 6px; border-bottom: 1px solid #30363d; padding-bottom: 2px;">${title}</div>`;
+                let groupHtml = `<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px; border-bottom: 1px solid var(--border-color); padding-bottom: 2px;">${title}</div>`;
                 let hasItems = false;
                 
                 chart.data.datasets.forEach((ds, idx) => {
                     if (matchNames.some(name => ds.label && ds.label.includes(name))) {
                         hasItems = true;
                         let isVisible = chart.isDatasetVisible(idx);
-                        let color = ds.borderColor === '#ffffff' ? '#c9d1d9' : (ds.pointBorderColor || ds.borderColor || '#8b949e');
+                        let color = (ds.borderColor === '#ffffff' || ds.borderColor === '#586e75') ? 'var(--text-primary)' : (ds.pointBorderColor || ds.borderColor || 'var(--text-muted)');
                         
                         let shapeHtml = `<span style="display:inline-block; width:10px; height:10px; background:${color}; border-radius:50%;"></span>`;
                         if (ds.label && ds.label.includes('賣出')) {
@@ -2150,7 +2382,7 @@
                         }
 
                         groupHtml += `
-                        <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer; font-size: 13px; color: ${isVisible ? '#c9d1d9' : '#8b949e'}; transition: color 0.2s;">
+                        <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer; font-size: 13px; color: ${isVisible ? 'var(--text-primary)' : 'var(--text-muted)'}; transition: color 0.2s;">
                             <input type="checkbox" ${isVisible ? 'checked' : ''} onchange="toggleCustomLegend(${idx})" style="accent-color: ${color}; cursor: pointer; width: 14px; height: 14px; margin: 0;">
                             ${shapeHtml}
                             ${ds.label}
