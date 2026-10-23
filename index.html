@@ -894,6 +894,132 @@
             align-items: center;
         }
 
+
+        @media (max-width: 680px) {
+            /* 1. 頂部操作工具列緊湊化 (Toolbar Compact) */
+            .expense-period-bar {
+                padding: 10px 12px;
+                gap: 8px;
+                margin-bottom: 12px;
+            }
+            .period-type-pills {
+                width: 100%;
+                display: flex;
+            }
+            .period-type-btn {
+                flex: 1;
+                padding: 6px 2px;
+                font-size: 13px;
+                text-align: center;
+                white-space: nowrap;
+            }
+            .desktop-only-inline {
+                display: none;
+            }
+            .period-nav-container {
+                width: 100%;
+                justify-content: space-between;
+                align-items: center;
+                gap: 6px;
+            }
+            .month-nav-btn {
+                width: 30px;
+                height: 30px;
+                font-size: 12px;
+            }
+            .current-period-display {
+                font-size: 15px;
+                font-weight: 700;
+            }
+            .period-actions {
+                width: 100%;
+                justify-content: flex-end;
+                gap: 6px;
+                flex-wrap: wrap;
+            }
+            .period-actions .sort-btn {
+                padding: 5px 8px;
+                font-size: 11px;
+            }
+
+            /* 2. 方案 A：雙排精緻儀表板 (第 1 排 3 欄並列，第 2 排 2 欄並列) */
+            .expense-kpi-grid {
+                grid-template-columns: repeat(6, 1fr);
+                gap: 8px;
+                margin-bottom: 14px;
+            }
+            .kpi-card {
+                padding: 10px 8px;
+                border-radius: 8px;
+            }
+            .kpi-title {
+                font-size: 11px;
+                margin-bottom: 3px;
+                font-weight: 600;
+            }
+            .kpi-value {
+                font-size: 14px;
+                font-weight: 800;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .kpi-sub {
+                display: none; /* 手機版隱藏副標題以極限節省縱向空間 */
+            }
+
+            /* 第一排：收入、支出、淨結餘 各佔 2 欄 (合計 6 欄) */
+            .kpi-card.kpi-income {
+                grid-column: span 2;
+            }
+            .kpi-card.kpi-expense {
+                grid-column: span 2;
+            }
+            .kpi-card.kpi-net {
+                grid-column: span 2;
+            }
+
+            /* 第二排：儲蓄率、信用卡 各佔 3 欄 (合計 6 欄) */
+            .kpi-card.kpi-savings {
+                grid-column: span 3;
+            }
+            .kpi-card.kpi-card-pending {
+                grid-column: span 3;
+            }
+
+            /* 3. 快速記帳面板微調，避免拉長 */
+            .quick-entry-card {
+                padding: 14px 12px;
+                margin-bottom: 16px;
+            }
+            .amount-main-input {
+                font-size: 22px;
+            }
+            .account-pills-row {
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+            .account-pill {
+                padding: 5px 10px;
+                font-size: 12px;
+            }
+            .category-matrix {
+                gap: 5px;
+            }
+            .category-matrix-item {
+                padding: 6px 2px;
+                font-size: 11px;
+            }
+            .category-matrix-icon {
+                font-size: 16px;
+            }
+
+            /* 4. 滾輪清單在手機高度優化 */
+            .expense-list-container {
+                max-height: 420px;
+            }
+        }
+
         @media (max-width: 900px) {
             .expense-layout-grid {
                 grid-template-columns: 1fr;
@@ -1163,9 +1289,9 @@
         <!-- 時間維度選擇列 (按月 / 按年 / 自訂區間) -->
         <div class="expense-period-bar">
             <div class="period-type-pills">
-                <button type="button" class="period-type-btn active" id="period-btn-month" onclick="setExpensePeriodType('month')">📆 按月檢視</button>
-                <button type="button" class="period-type-btn" id="period-btn-year" onclick="setExpensePeriodType('year')">📅 按年檢視</button>
-                <button type="button" class="period-type-btn" id="period-btn-custom" onclick="setExpensePeriodType('custom')">⏱️ 自訂區間</button>
+                <button type="button" class="period-type-btn active" id="period-btn-month" onclick="setExpensePeriodType('month')"><span>📆 按月</span><span class="desktop-only-inline">檢視</span></button>
+                <button type="button" class="period-type-btn" id="period-btn-year" onclick="setExpensePeriodType('year')"><span>📅 按年</span><span class="desktop-only-inline">檢視</span></button>
+                <button type="button" class="period-type-btn" id="period-btn-custom" onclick="setExpensePeriodType('custom')"><span>⏱️ 自訂</span><span class="desktop-only-inline">區間</span></button>
             </div>
 
             <!-- 月份導航 (按月模式) -->
