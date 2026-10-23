@@ -1204,6 +1204,7 @@
                 <input type="file" id="csv-upload-input" accept=".csv" style="display: none;" onchange="handleCSVUpload(event)">
                 <button class="sort-btn" onclick="document.getElementById('csv-upload-input').click()" title="支援匯入天天記帳 CSV 檔">📥 匯入 CSV</button>
                 <button class="sort-btn" onclick="exportExpensesToCSV()" title="匯出 UTF-8 格式 CSV">📤 匯出備份</button>
+                <button class="sort-btn" onclick="syncWithCloud()" title="手動觸發與 Google 試算表雲端同步">☁️ 雲端同步</button>
             </div>
         </div>
 
@@ -1747,6 +1748,42 @@
             }
         }
 
+        async function saveExpenseToCloud(payload = null, action = 'batch', isSilent = false) {
+            localStorage.setItem('wealthExpenses', JSON.stringify(expenses));
+            localStorage.setItem('wealthExpenseDirty', 'true');
+            
+            const pwd = (typeof wealthPwd !== 'undefined' && wealthPwd) ? wealthPwd : (localStorage.getItem('wealthPwd') || '');
+            if (!pwd) return;
+            
+            if (!isSilent && typeof setStatus === 'function') setStatus('⏳ 正在同步記帳至 Google 試算表...', 'loading');
+            try {
+                let bodyObj;
+                if (action === 'add' && payload) {
+                    bodyObj = { pwd: pwd, type: 'addExpense', expense: payload };
+                } else if (action === 'delete' && payload && payload.id) {
+                    bodyObj = { pwd: pwd, type: 'deleteExpense', id: payload.id };
+                } else {
+                    bodyObj = { pwd: pwd, type: 'updateExpenses', expenses: expenses };
+                }
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(bodyObj)
+                });
+                if (!res.ok) throw new Error("HTTP " + res.status);
+                let resJson;
+                try { resJson = await res.json(); } catch(e) {}
+                if (resJson && resJson.error === 'Unauthorized') {
+                    if (typeof showLogin === 'function') showLogin(true);
+                    throw new Error("密碼錯誤");
+                }
+                localStorage.removeItem('wealthExpenseDirty');
+                if (!isSilent && typeof setStatus === 'function') setStatus('🟢 記帳已同步至 Google 試算表！', 'success');
+            } catch (err) {
+                console.error("Expense cloud sync failed:", err);
+                if (!isSilent && typeof setStatus === 'function') setStatus('🔴 記帳雲端儲存失敗，已暫存本機', 'error');
+            }
+        }
+
         function saveExpense() {
             const amtInput = document.getElementById('expense-amount-input');
             const dateInput = document.getElementById('expense-date-input');
@@ -1762,7 +1799,9 @@
             let dateVal = dateInput.value || selectedExpenseDate;
             let noteVal = noteInput.value.trim();
 
-            if (editingExpenseId !== null) {
+            let isEditMode = (editingExpenseId !== null);
+            let newlyCreatedRecord = null;
+            if (isEditMode) {
                 let item = expenses.find(e => e.id === editingExpenseId);
                 if (item) {
                     item.amount = amount;
@@ -1777,7 +1816,7 @@
                 document.getElementById('btn-cancel-edit').style.display = 'none';
                 document.getElementById('save-expense-btn-text').innerText = '➕ 儲存記帳';
             } else {
-                let newRecord = {
+                newlyCreatedRecord = {
                     id: (crypto.randomUUID ? crypto.randomUUID() : 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)),
                     date: dateVal,
                     type: currentExpenseType,
@@ -1786,10 +1825,11 @@
                     account: selectedExpenseAccount,
                     note: noteVal
                 };
-                expenses.unshift(newRecord);
+                expenses.unshift(newlyCreatedRecord);
             }
 
             localStorage.setItem('wealthExpenses', JSON.stringify(expenses));
+            saveExpenseToCloud(isEditMode ? null : newlyCreatedRecord, isEditMode ? 'batch' : 'add');
             
             amtInput.value = '';
             noteInput.value = '';
@@ -1835,8 +1875,10 @@
 
         function deleteExpense(id) {
             if (!confirm('確定要刪除這筆記帳紀錄嗎？')) return;
+            let delId = id;
             expenses = expenses.filter(e => e.id !== id);
             localStorage.setItem('wealthExpenses', JSON.stringify(expenses));
+            saveExpenseToCloud({ id: delId }, 'delete');
             renderExpenseUI();
         }
 
@@ -2686,7 +2728,8 @@
                     expenses = [...newItems, ...expenses];
                     expenses.sort((a, b) => b.date.localeCompare(a.date));
                     localStorage.setItem('wealthExpenses', JSON.stringify(expenses));
-                    alert(`🎉 成功匯入 ${newItems.length} 筆記帳紀錄！`);
+                    saveExpenseToCloud(null, 'batch');
+                    alert(`🎉 成功匯入 ${newItems.length} 筆記帳紀錄，並同步至 Google 試算表！`);
                     renderExpenseUI();
                 } else {
                     alert('資料均已存在，未新增重複紀錄。');
@@ -3155,8 +3198,29 @@
                         currentExchangeRate = data.livePrices['USD-TWD']; 
                     }
                 }
+
+                // === 記帳模組 Google 試算表同步 (Expenses Cloud Sync) ===
+                if (Array.isArray(data.expenses)) {
+                    let localExpenses = JSON.parse(localStorage.getItem('wealthExpenses')) || [];
+                    let isExpenseDirty = localStorage.getItem('wealthExpenseDirty') === 'true';
+                    
+                    if (isExpenseDirty) {
+                        expenses = localExpenses;
+                        await saveExpenseToCloud(null, 'batch', true);
+                    } else if (data.expenses.length > 0) {
+                        expenses = data.expenses;
+                        localStorage.setItem('wealthExpenses', JSON.stringify(expenses));
+                    } else if (localExpenses.length > 0) {
+                        // 雲端試算表為空，首次自動將本地 1,464 筆歷史資料整批灌入試算表
+                        expenses = localExpenses;
+                        await saveExpenseToCloud(null, 'batch', true);
+                    }
+                    if (typeof renderExpenseUI === 'function') {
+                        renderExpenseUI();
+                    }
+                }
                 
-                setStatus('🟢 雲端資料庫同步完成', 'success');
+                setStatus('🟢 雲端資料庫同步完成 (含日常記帳)', 'success');
                 executeTabSwitch(currentTab, true);
             } catch (error) {
                 console.error(error);
