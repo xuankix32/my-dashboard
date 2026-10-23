@@ -1359,6 +1359,36 @@
                         <!-- 清單項目由 JS 繪製 -->
                     </div>
                 </div>
+
+                <!-- 3. 年度 12 個月收支匯總表 (僅在按年模式下展示，取代龐大的流水細項) -->
+                <div id="expense-annual-summary-wrapper" style="display: none;">
+                    <div class="card" style="padding: 18px 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+                            <h3 style="margin: 0; font-size: 15px; color: var(--text-heading); font-weight: 700;">
+                                📑 <span id="annual-summary-table-title">2026 年度各月份收支匯總</span>
+                            </h3>
+                            <span style="font-size: 12px; color: var(--text-muted);">💡 點擊「查看當月」可深入瀏覽各月行事曆與明細</span>
+                        </div>
+                        <div class="table-scroll-container" style="max-height: 480px;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                <thead>
+                                    <tr style="border-bottom: 1px solid var(--border-color); text-align: left; background-color: var(--bg-card);">
+                                        <th style="padding: 10px 12px;">月份</th>
+                                        <th style="padding: 10px 12px; text-align: right;">總收入</th>
+                                        <th style="padding: 10px 12px; text-align: right;">總支出</th>
+                                        <th style="padding: 10px 12px; text-align: right;">淨結餘</th>
+                                        <th style="padding: 10px 12px; text-align: right;">儲蓄率</th>
+                                        <th style="padding: 10px 12px; text-align: center;">筆數</th>
+                                        <th style="padding: 10px 12px; text-align: center;">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="annual-monthly-table-body">
+                                    <!-- 12 個月份的精簡匯總行由 JS 生成 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- 右側：圓餅圖與帳戶分佈 -->
@@ -1836,18 +1866,36 @@
             renderExpensePeriodBar();
             renderExpenseKPIs();
             renderAnnualBarChart();
-            
-            if (expensePeriodType === 'month' && expenseViewMode === 'calendar') {
-                document.getElementById('expense-calendar-wrapper').style.display = 'block';
-                document.getElementById('expense-list-view').style.display = 'none';
-                renderExpenseCalendar();
-                renderSelectedDayPanel();
+
+            const toolbar = document.querySelector('.expense-toolbar');
+            const calWrapper = document.getElementById('expense-calendar-wrapper');
+            const listView = document.getElementById('expense-list-view');
+            const annualSummary = document.getElementById('expense-annual-summary-wrapper');
+
+            if (expensePeriodType === 'year') {
+                if (toolbar) toolbar.style.display = 'none';
+                if (calWrapper) calWrapper.style.display = 'none';
+                if (listView) listView.style.display = 'none';
+                if (annualSummary) {
+                    annualSummary.style.display = 'block';
+                    renderAnnualMonthlySummaryTable();
+                }
             } else {
-                document.getElementById('expense-calendar-wrapper').style.display = 'none';
-                document.getElementById('expense-list-view').style.display = 'block';
-                renderExpenseList();
+                if (toolbar) toolbar.style.display = 'flex';
+                if (annualSummary) annualSummary.style.display = 'none';
+
+                if (expensePeriodType === 'month' && expenseViewMode === 'calendar') {
+                    if (calWrapper) calWrapper.style.display = 'block';
+                    if (listView) listView.style.display = 'none';
+                    renderExpenseCalendar();
+                    renderSelectedDayPanel();
+                } else {
+                    if (calWrapper) calWrapper.style.display = 'none';
+                    if (listView) listView.style.display = 'block';
+                    renderExpenseList();
+                }
             }
-            
+
             renderExpenseCategoryChart();
             renderExpenseAccountDistribution();
         }
@@ -2018,6 +2066,102 @@
                     }
                 }
             });
+        }
+
+        function renderAnnualMonthlySummaryTable() {
+            const tbody = document.getElementById('annual-monthly-table-body');
+            const titleEl = document.getElementById('annual-summary-table-title');
+            if (!tbody) return;
+
+            if (titleEl) {
+                titleEl.innerText = `${currentExpenseYear} 年度各月份收支匯總`;
+            }
+
+            let monthlyData = [];
+            for (let m = 1; m <= 12; m++) {
+                let mStr = (m < 10 ? '0' : '') + m;
+                monthlyData.push({
+                    month: m,
+                    monthKey: `${currentExpenseYear}-${mStr}`,
+                    income: 0,
+                    expense: 0,
+                    count: 0
+                });
+            }
+
+            expenses.forEach(e => {
+                if (e.date && e.date.startsWith(currentExpenseYear)) {
+                    let m = parseInt(e.date.substring(5, 7), 10) - 1;
+                    if (m >= 0 && m < 12) {
+                        if (e.type === '收') {
+                            monthlyData[m].income += e.amount;
+                        } else {
+                            monthlyData[m].expense += e.amount;
+                        }
+                        monthlyData[m].count++;
+                    }
+                }
+            });
+
+            let totalIncome = 0;
+            let totalExpense = 0;
+            let totalCount = 0;
+
+            let rowsHtml = '';
+            monthlyData.forEach(d => {
+                totalIncome += d.income;
+                totalExpense += d.expense;
+                totalCount += d.count;
+
+                let net = d.income - d.expense;
+                let savingsRateStr = '-';
+                if (d.income > 0) {
+                    savingsRateStr = (net / d.income * 100).toFixed(1) + '%';
+                }
+
+                let netColor = net > 0 ? 'var(--badge-profit-text)' : (net < 0 ? 'var(--badge-loss-text)' : 'var(--text-muted)');
+                let netPrefix = net > 0 ? '+' : '';
+
+                let actionBtn = d.count > 0 
+                    ? `<button class="sort-btn" style="padding: 4px 10px; font-size: 12px; margin: 0 auto;" onclick="goToSpecificExpenseMonth('${d.monthKey}')">📅 查看當月</button>`
+                    : `<span style="font-size: 12px; color: var(--text-muted);">-</span>`;
+
+                rowsHtml += `
+                    <tr style="border-bottom: 1px solid var(--border-subtle); height: 42px;">
+                        <td style="padding: 8px 12px; font-weight: 700; color: var(--text-heading);">${currentExpenseYear} 年 ${d.month} 月</td>
+                        <td style="padding: 8px 12px; text-align: right; color: var(--badge-profit-text); font-weight: 600;">${d.income > 0 ? '+ NT$ ' + Math.round(d.income).toLocaleString() : '-'}</td>
+                        <td style="padding: 8px 12px; text-align: right; color: var(--badge-loss-text); font-weight: 600;">${d.expense > 0 ? '- NT$ ' + Math.round(d.expense).toLocaleString() : '-'}</td>
+                        <td style="padding: 8px 12px; text-align: right; color: ${netColor}; font-weight: 700;">${d.count > 0 ? netPrefix + 'NT$ ' + Math.round(net).toLocaleString() : '-'}</td>
+                        <td style="padding: 8px 12px; text-align: right; color: #bc8cff; font-weight: 600;">${savingsRateStr}</td>
+                        <td style="padding: 8px 12px; text-align: center; color: var(--text-muted); font-size: 12px;">${d.count > 0 ? d.count + ' 筆' : '-'}</td>
+                        <td style="padding: 8px 12px; text-align: center;">${actionBtn}</td>
+                    </tr>
+                `;
+            });
+
+            let totalNet = totalIncome - totalExpense;
+            let totalSavingsRateStr = totalIncome > 0 ? (totalNet / totalIncome * 100).toFixed(1) + '%' : '-';
+            let totalNetColor = totalNet > 0 ? 'var(--badge-profit-text)' : (totalNet < 0 ? 'var(--badge-loss-text)' : 'var(--text-muted)');
+            let totalNetPrefix = totalNet > 0 ? '+' : '';
+
+            rowsHtml += `
+                <tr style="border-top: 2px solid var(--border-color); background: var(--bg-hover); font-weight: 800;">
+                    <td style="padding: 10px 12px; color: var(--accent-blue);">年度合計 (${currentExpenseYear})</td>
+                    <td style="padding: 10px 12px; text-align: right; color: var(--badge-profit-text);">+ NT$ ${Math.round(totalIncome).toLocaleString()}</td>
+                    <td style="padding: 10px 12px; text-align: right; color: var(--badge-loss-text);">- NT$ ${Math.round(totalExpense).toLocaleString()}</td>
+                    <td style="padding: 10px 12px; text-align: right; color: ${totalNetColor};">${totalNetPrefix}NT$ ${Math.round(totalNet).toLocaleString()}</td>
+                    <td style="padding: 10px 12px; text-align: right; color: #bc8cff;">${totalSavingsRateStr}</td>
+                    <td style="padding: 10px 12px; text-align: center; color: var(--text-heading); font-size: 12px;">${totalCount} 筆</td>
+                    <td style="padding: 10px 12px; text-align: center; color: var(--text-muted);">-</td>
+                </tr>
+            `;
+
+            tbody.innerHTML = rowsHtml;
+        }
+
+        function goToSpecificExpenseMonth(monthStr) {
+            currentExpenseMonth = monthStr;
+            setExpensePeriodType('month');
         }
 
         function renderExpenseCalendar() {
