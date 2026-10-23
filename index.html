@@ -688,7 +688,11 @@
         }
 
         function toggleGlobalCurrency() {
-            tabCurrencies[currentTab] = tabCurrencies[currentTab] === 'USD' ? 'TWD' : 'USD';
+            let cur = tabCurrencies[currentTab] || 'TWD';
+            if (cur === 'TWD') cur = 'USD';
+            else if (cur === 'USD') cur = 'NATIVE';
+            else cur = 'TWD';
+            tabCurrencies[currentTab] = cur;
             localStorage.setItem('wealthCurrencies', JSON.stringify(tabCurrencies)); 
             updateCurrencyUI(); 
             renderDashboardUI();
@@ -709,11 +713,19 @@
         }
 
         function updateCurrencyUI() {
-            let currentCur = tabCurrencies[currentTab];
+            let currentCur = tabCurrencies[currentTab] || 'TWD';
             const btn = document.getElementById('currency-toggle-btn');
-            if(btn) btn.innerText = currentCur === 'USD' ? '🔄 切換為 TWD 計價' : '🔄 切換為 USD 計價';
+            if (btn) {
+                if (currentCur === 'TWD') btn.innerText = '🔄 切換為 USD 計價';
+                else if (currentCur === 'USD') btn.innerText = '🔄 切換為 當地幣別計價';
+                else btn.innerText = '🔄 切換為 TWD 計價';
+            }
             const note = document.getElementById('exchange-note');
-            if(note) note.innerText = currentCur === 'USD' ? '(以 USD 計價)' : '(以 TWD 計價)';
+            if (note) {
+                if (currentCur === 'USD') note.innerText = '(以 USD 計價)';
+                else if (currentCur === 'NATIVE') note.innerText = '(各標的當地幣別，總額以 TWD 折算)';
+                else note.innerText = '(以 TWD 計價)';
+            }
         }
 
         function togglePieChartMode() {
@@ -1265,6 +1277,8 @@
                         totalRealizedPnl += (portfolio[coin].realized / currentExchangeRate);
                     } else if (globalCurrency === 'TWD' && portfolio[coin].category !== 'tw_stock') {
                         totalRealizedPnl += (portfolio[coin].realized * currentExchangeRate);
+                    } else if (globalCurrency === 'NATIVE') {
+                        totalRealizedPnl += (portfolio[coin].category === 'tw_stock' ? portfolio[coin].realized : portfolio[coin].realized * currentExchangeRate);
                     } else {
                         totalRealizedPnl += portfolio[coin].realized;
                     }
@@ -1288,7 +1302,7 @@
                 let percentChange = 0;
                 if (currentCost > 0) { percentChange = (unrealizedPnl / currentCost) * 100; }
 
-                let rowCurrency = globalCurrency; 
+                let rowCurrency = globalCurrency === 'NATIVE' ? itemCurrency : globalCurrency; 
                 let displayPrice = currentPrice; let displayAvgCost = avgCostPrice;
                 let displayValue = currentValue; let displayCost = currentCost;
                 let displayUnrealized = unrealizedPnl; let displayRealized = realizedPnl;
@@ -1301,18 +1315,33 @@
                     displayCost *= currentExchangeRate; displayUnrealized *= currentExchangeRate; displayRealized *= currentExchangeRate;
                 }
 
-                totalValue += displayValue;
-                totalCost += displayCost;
-                totalUnrealizedPnl += displayUnrealized;
-                totalRealizedPnl += displayRealized;
-                if (portfolio[coin].amt > 0) { totalOriginalCost += displayCost; }
+                // In NATIVE mode, table shows native currency, while chart and summary totals are calculated in TWD
+                let contribValue = displayValue;
+                let contribCost = displayCost;
+                let contribUnrealized = displayUnrealized;
+                let contribRealized = displayRealized;
+
+                if (globalCurrency === 'NATIVE') {
+                    if (itemCurrency === 'USD') {
+                        contribValue *= currentExchangeRate;
+                        contribCost *= currentExchangeRate;
+                        contribUnrealized *= currentExchangeRate;
+                        contribRealized *= currentExchangeRate;
+                    }
+                }
+
+                totalValue += contribValue;
+                totalCost += contribCost;
+                totalUnrealizedPnl += contribUnrealized;
+                totalRealizedPnl += contribRealized;
+                if (portfolio[coin].amt > 0) { totalOriginalCost += contribCost; }
 
                 if (portfolio[coin].amt > 0) {
-                    chartRawLabels.push(coin); chartData.push(displayValue);
-                    costData.push(displayCost); chartColors.push(stringToColor(coin)); 
+                    chartRawLabels.push(coin); chartData.push(contribValue);
+                    costData.push(contribCost); chartColors.push(stringToColor(coin)); 
                     
-                    catTotals[portfolio[coin].category].val += displayValue;
-                    catTotals[portfolio[coin].category].cost += displayCost;
+                    catTotals[portfolio[coin].category].val += contribValue;
+                    catTotals[portfolio[coin].category].cost += contribCost;
                 }
 
                 let pnlClass = displayUnrealized > 0 ? 'profit-badge' : (displayUnrealized < 0 ? 'loss-badge' : 'neutral-badge');
@@ -1327,13 +1356,27 @@
                 let precision = (coin === 'NIGHT') ? 5 : ((coin === 'BTC' || coin === 'ETH' || rowCurrency === 'TWD' || portfolio[coin].category === 'us_stock') ? 2 : 4);
                 let priceDisplay = isAwaitingAPI ? `<span title="等待同步..." style="color:var(--text-muted);">${formatMoney(displayPrice, precision, rowCurrency)} ⏳</span>` : formatMoney(displayPrice, precision, rowCurrency);
 
+                let subtextHTML = '';
+                if (globalCurrency === 'NATIVE') {
+                    if (itemCurrency === 'USD') {
+                        let twdVal = displayValue * currentExchangeRate;
+                        subtextHTML = `<div style="font-size:11px; color:var(--text-muted); font-weight:normal; margin-top:2px;">≈ NT$ ${formatMoney(twdVal, 2, 'TWD').replace('NT$', '')}</div>`;
+                    } else {
+                        let usdVal = displayValue / currentExchangeRate;
+                        subtextHTML = `<div style="font-size:11px; color:var(--text-muted); font-weight:normal; margin-top:2px;">≈ $ ${formatMoney(usdVal, 2, 'USD').replace('$', '')}</div>`;
+                    }
+                }
+
                 if (!(tabHideZero[currentTab] && portfolio[coin].amt <= 0)) {
                     summaryHTML += `<tr>
                         <td class="coin-name">${coin} ${displayCatBadgeHTML}</td>
                         <td>${formatAmount(portfolio[coin].amt)}</td>
                         <td>${formatMoney(displayAvgCost, precision, rowCurrency)}</td>
                         <td>${priceDisplay}</td>
-                        <td style="font-weight:bold; color:var(--text-heading);">${formatMoney(displayValue, 2, rowCurrency)}</td>
+                        <td style="font-weight:bold; color:var(--text-heading);">
+                            <div>${formatMoney(displayValue, 2, rowCurrency)}</div>
+                            ${subtextHTML}
+                        </td>
                         <td>${unrealizedCell}</td>
                         <td>${realizedBadge}</td>
                     </tr>`;
@@ -1474,19 +1517,25 @@
                 athHTML = `<span class="badge" style="background: rgba(63,185,80,0.1); color: #3fb950; font-size:12px; margin-left: 10px; padding: 2px 6px;">🔥 歷史新高！</span>`;
             }
             
-            let totalCurrency = globalCurrency;
-            document.getElementById('total-value').innerHTML = formatMoney(totalValue, 2, totalCurrency) + athHTML;
+            let totalCurrency = globalCurrency === 'USD' ? 'USD' : 'TWD';
+            let altTotalStr = '';
+            if (globalCurrency === 'NATIVE') {
+                altTotalStr = ` <span style="font-size: 14px; color: var(--text-muted); font-weight:normal; margin-left:6px;">(≈ $ ${formatMoney(totalValue / currentExchangeRate, 2, 'USD').replace('$', '')})</span>`;
+            }
+            document.getElementById('total-value').innerHTML = formatMoney(totalValue, 2, totalCurrency) + altTotalStr + athHTML;
             
             let totalPercentChange = 0;
             if (totalOriginalCost > 0) { totalPercentChange = (totalUnrealizedPnl / totalOriginalCost) * 100; }
 
             const elUnrealized = document.getElementById('total-unrealized');
             let totalPnlSign = totalUnrealizedPnl > 0 ? '+' : '';
-            elUnrealized.innerHTML = `${totalPnlSign}${formatMoney(totalUnrealizedPnl, 2, totalCurrency)} <span style="font-size:12px; margin-left:5px; opacity:0.8;">(${totalPnlSign}${totalPercentChange.toFixed(2)}%)</span>`;
+            let altUnrealizedStr = globalCurrency === 'NATIVE' ? ` <span style="font-size:11px; margin-left:4px; opacity:0.8;">(≈ ${totalPnlSign}${formatMoney(totalUnrealizedPnl / currentExchangeRate, 2, 'USD')})</span>` : '';
+            elUnrealized.innerHTML = `${totalPnlSign}${formatMoney(totalUnrealizedPnl, 2, totalCurrency)} <span style="font-size:12px; margin-left:5px; opacity:0.8;">(${totalPnlSign}${totalPercentChange.toFixed(2)}%)</span>${altUnrealizedStr}`;
             elUnrealized.className = `badge ${totalUnrealizedPnl > 0 ? 'profit-badge' : (totalUnrealizedPnl < 0 ? 'loss-badge' : 'neutral-badge')}`;
             
             const elRealized = document.getElementById('total-realized');
-            elRealized.innerText = (totalRealizedPnl > 0 ? '+' : '') + formatMoney(totalRealizedPnl, 2, totalCurrency);
+            let altRealizedStr = globalCurrency === 'NATIVE' ? ` <span style="font-size:11px; margin-left:4px; opacity:0.8;">(≈ ${totalRealizedPnl > 0 ? '+' : ''}${formatMoney(totalRealizedPnl / currentExchangeRate, 2, 'USD')})</span>` : '';
+            elRealized.innerHTML = (totalRealizedPnl > 0 ? '+' : '') + formatMoney(totalRealizedPnl, 2, totalCurrency) + altRealizedStr;
             elRealized.className = `badge ${totalRealizedPnl > 0 ? 'profit-badge' : (totalRealizedPnl < 0 ? 'loss-badge' : 'neutral-badge')}`;
             
             const pieModeBtn = document.getElementById('pie-mode-btn');
@@ -1664,6 +1713,7 @@
 
         function updateTrendChart() {
             let globalCurrency = tabCurrencies[currentTab]; 
+            let chartCurrency = (globalCurrency === 'USD') ? 'USD' : 'TWD'; 
             
             if (trendChartInstance) trendChartInstance.destroy();
             const ctx = document.getElementById('trendChart').getContext('2d');
@@ -1764,25 +1814,25 @@
                     let startSnap = sortedSnaps[0];
                     let endSnap = sortedSnaps[sortedSnaps.length - 1];
 
-                    let assetKey = globalCurrency === 'USD' ? 'total_usd' : 'total_twd';
-                    let costKey = globalCurrency === 'USD' ? 'hist_cost_usd' : 'hist_cost_twd';
+                    let assetKey = chartCurrency === 'USD' ? 'total_usd' : 'total_twd';
+                    let costKey = chartCurrency === 'USD' ? 'hist_cost_usd' : 'hist_cost_twd';
                     
                     if (currentTab === 'crypto') {
-                        assetKey = globalCurrency === 'USD' ? 'crypto_usd' : 'crypto_twd';
-                        costKey = globalCurrency === 'USD' ? 'hist_cost_crypto_usd' : 'hist_cost_crypto_twd';
+                        assetKey = chartCurrency === 'USD' ? 'crypto_usd' : 'crypto_twd';
+                        costKey = chartCurrency === 'USD' ? 'hist_cost_crypto_usd' : 'hist_cost_crypto_twd';
                     } else if (currentTab === 'tw_stock') {
-                        assetKey = globalCurrency === 'USD' ? 'tw_stock_usd' : 'tw_stock_twd';
-                        costKey = globalCurrency === 'USD' ? 'hist_cost_tw_stock_usd' : 'hist_cost_tw_stock_twd';
+                        assetKey = chartCurrency === 'USD' ? 'tw_stock_usd' : 'tw_stock_twd';
+                        costKey = chartCurrency === 'USD' ? 'hist_cost_tw_stock_usd' : 'hist_cost_tw_stock_twd';
                     } else if (currentTab === 'us_stock') {
-                        assetKey = globalCurrency === 'USD' ? 'us_stock_usd' : 'us_stock_twd';
-                        costKey = globalCurrency === 'USD' ? 'hist_cost_us_stock_usd' : 'hist_cost_us_stock_twd';
+                        assetKey = chartCurrency === 'USD' ? 'us_stock_usd' : 'us_stock_twd';
+                        costKey = chartCurrency === 'USD' ? 'hist_cost_us_stock_usd' : 'hist_cost_us_stock_twd';
                     }
 
-                    let startAsset = startSnap[assetKey];
-                    let endAsset = endSnap[assetKey];
-                    let startCost = startSnap[costKey];
-                    let endCost = endSnap[costKey];
-
+                    let startAsset = startSnap[assetKey] || 0;
+                    let endAsset = endSnap[assetKey] || 0;
+                    let startCost = startSnap[costKey] || 0;
+                    let endCost = endSnap[costKey] || 0;
+                    
                     let displayVal = 0;
                     let displayPct = 0;
                     let modeText = '';
@@ -1803,7 +1853,7 @@
                     let bgColor = displayVal >= 0 ? 'rgba(63, 185, 80, 0.15)' : 'rgba(255, 123, 114, 0.15)';
                     let color = displayVal >= 0 ? '#3fb950' : '#ff7b72';
                     
-                    badgeEl.innerHTML = `${modeText}: ${sign}${formatMoney(displayVal, 0, globalCurrency)} (${sign}${displayPct.toFixed(2)}%)`;
+                    badgeEl.innerHTML = `${modeText}: ${sign}${formatMoney(displayVal, 0, chartCurrency)} (${sign}${displayPct.toFixed(2)}%)`;
                     badgeEl.style.backgroundColor = bgColor;
                     badgeEl.style.color = color;
                     badgeEl.style.display = 'inline-block';
@@ -1834,10 +1884,10 @@
                     {
                         label: '現金',
                         data: sortedSnaps.map(s => {
-                            let total = globalCurrency === 'USD' ? s.total_usd : s.total_twd;
-                            let crypto = globalCurrency === 'USD' ? s.crypto_usd : s.crypto_twd;
-                            let tw = globalCurrency === 'USD' ? s.tw_stock_usd : s.tw_stock_twd;
-                            let us = globalCurrency === 'USD' ? s.us_stock_usd : s.us_stock_twd;
+                            let total = chartCurrency === 'USD' ? s.total_usd : s.total_twd;
+                            let crypto = chartCurrency === 'USD' ? s.crypto_usd : s.crypto_twd;
+                            let tw = chartCurrency === 'USD' ? s.tw_stock_usd : s.tw_stock_twd;
+                            let us = chartCurrency === 'USD' ? s.us_stock_usd : s.us_stock_twd;
                             let cashVal = total - crypto - tw - us;
                             return Math.round(cashVal * 100) / 100;
                         }),
@@ -1853,7 +1903,7 @@
                     },
                     {
                         label: '台股',
-                        data: sortedSnaps.map(s => globalCurrency === 'USD' ? s.tw_stock_usd : s.tw_stock_twd),
+                        data: sortedSnaps.map(s => chartCurrency === 'USD' ? s.tw_stock_usd : s.tw_stock_twd),
                         borderColor: '#d32f2f',
                         backgroundColor: 'rgba(211, 47, 47, 0.4)', 
                         borderWidth: 2,
@@ -1866,7 +1916,7 @@
                     },
                     {
                         label: '美股',
-                        data: sortedSnaps.map(s => globalCurrency === 'USD' ? s.us_stock_usd : s.us_stock_twd),
+                        data: sortedSnaps.map(s => chartCurrency === 'USD' ? s.us_stock_usd : s.us_stock_twd),
                         borderColor: '#1976d2',
                         backgroundColor: 'rgba(25, 118, 210, 0.4)', 
                         borderWidth: 2,
@@ -1879,7 +1929,7 @@
                     },
                     {
                         label: '加密貨幣',
-                        data: sortedSnaps.map(s => globalCurrency === 'USD' ? s.crypto_usd : s.crypto_twd),
+                        data: sortedSnaps.map(s => chartCurrency === 'USD' ? s.crypto_usd : s.crypto_twd),
                         borderColor: '#f7931a',
                         backgroundColor: 'rgba(247, 147, 26, 0.4)', 
                         borderWidth: 2,
@@ -1892,12 +1942,12 @@
                     },
                     {
                         label: '累積投入本金',
-                        data: sortedSnaps.map(s => globalCurrency === 'USD' ? s.hist_cost_usd : s.hist_cost_twd),
+                        data: sortedSnaps.map(s => chartCurrency === 'USD' ? s.hist_cost_usd : s.hist_cost_twd),
                         borderColor: currentTheme === 'solarized-light' ? '#586e75' : '#ffffff',
                         borderDash: [5, 5],
                         borderWidth: 2,
                         fill: false,
-                        tension: 0.2,
+                        tension: 0.2, 
                         pointRadius: 0,
                         pointHoverRadius: 4,
                         stack: 'Stack 1',
@@ -1906,11 +1956,11 @@
                     },
                     {
                         label: '總資產',
-                        data: sortedSnaps.map(s => globalCurrency === 'USD' ? s.total_usd : s.total_twd),
+                        data: sortedSnaps.map(s => chartCurrency === 'USD' ? s.total_usd : s.total_twd),
                         borderColor: currentTheme === 'solarized-light' ? '#268bd2' : '#58a6ff',
                         borderWidth: 2,
                         fill: false,
-                        tension: 0.2,
+                        tension: 0.2, 
                         pointRadius: 0,
                         pointHoverRadius: 4,
                         stack: 'Stack 2',
@@ -1924,18 +1974,18 @@
                 let chartColor = '#58a6ff'; 
 
                 if (currentTab === 'crypto') {
-                    dataKey = globalCurrency === 'USD' ? 'crypto_usd' : 'crypto_twd';
-                    costDataKey = globalCurrency === 'USD' ? 'hist_cost_crypto_usd' : 'hist_cost_crypto_twd';
+                    dataKey = chartCurrency === 'USD' ? 'crypto_usd' : 'crypto_twd';
+                    costDataKey = chartCurrency === 'USD' ? 'hist_cost_crypto_usd' : 'hist_cost_crypto_twd';
                     chartLabel = '加密貨幣走勢';
                     chartColor = '#f7931a'; 
                 } else if (currentTab === 'tw_stock') {
-                    dataKey = globalCurrency === 'USD' ? 'tw_stock_usd' : 'tw_stock_twd';
-                    costDataKey = globalCurrency === 'USD' ? 'hist_cost_tw_stock_usd' : 'hist_cost_tw_stock_twd';
+                    dataKey = chartCurrency === 'USD' ? 'tw_stock_usd' : 'tw_stock_twd';
+                    costDataKey = chartCurrency === 'USD' ? 'hist_cost_tw_stock_usd' : 'hist_cost_tw_stock_twd';
                     chartLabel = '台股走勢';
                     chartColor = '#d32f2f'; 
                 } else if (currentTab === 'us_stock') {
-                    dataKey = globalCurrency === 'USD' ? 'us_stock_usd' : 'us_stock_twd';
-                    costDataKey = globalCurrency === 'USD' ? 'hist_cost_us_stock_usd' : 'hist_cost_us_stock_twd';
+                    dataKey = chartCurrency === 'USD' ? 'us_stock_usd' : 'us_stock_twd';
+                    costDataKey = chartCurrency === 'USD' ? 'hist_cost_us_stock_usd' : 'hist_cost_us_stock_twd';
                     chartLabel = '美股走勢';
                     chartColor = '#1976d2'; 
                 }
@@ -2101,7 +2151,7 @@
                             },
                             callbacks: { 
                                 label: function(c) { 
-                                    return ` ${c.dataset.label}: ${formatMoney(c.parsed.y, 2, globalCurrency)}`;
+                                    return ` ${c.dataset.label}: ${formatMoney(c.parsed.y, 2, chartCurrency)}`;
                                 },
                                 afterBody: function(items) {
                                     if (!items || items.length === 0) return '';
@@ -2135,37 +2185,37 @@
                                     
                                     let footerStr = '';
                                     if (isAllTab) {
-                                        footerStr += `\n------------------\n💰 總現值: ${formatMoney(currentTotal, 2, globalCurrency)}`;
+                                        footerStr += `\n------------------\n💰 總現值: ${formatMoney(currentTotal, 2, chartCurrency)}`;
                                         if (prevTotal !== null && prevTotal > 0) {
                                             let diff = currentTotal - prevTotal;
                                             let diffSign = diff >= 0 ? '+' : '';
                                             let diffIcon = diff >= 0 ? '📈' : '📉';
                                             let pct = (diff / prevTotal) * 100;
-                                            footerStr += `\n${diffIcon} 較前次: ${diffSign}${formatMoney(diff, 2, globalCurrency)} (${diffSign}${pct.toFixed(2)}%)`;
+                                            footerStr += `\n${diffIcon} 較前次: ${diffSign}${formatMoney(diff, 2, chartCurrency)} (${diffSign}${pct.toFixed(2)}%)`;
                                         }
                                     }
                                     
                                     let snap = sortedSnaps[items[0].dataIndex];
                                     if (snap) {
-                                        let assetKey = globalCurrency === 'USD' ? 'total_usd' : 'total_twd';
-                                        let costKey = globalCurrency === 'USD' ? 'hist_cost_usd' : 'hist_cost_twd';
+                                        let assetKey = chartCurrency === 'USD' ? 'total_usd' : 'total_twd';
+                                        let costKey = chartCurrency === 'USD' ? 'hist_cost_usd' : 'hist_cost_twd';
                                         
                                         if (currentTab === 'crypto') {
-                                            assetKey = globalCurrency === 'USD' ? 'crypto_usd' : 'crypto_twd';
-                                            costKey = globalCurrency === 'USD' ? 'hist_cost_crypto_usd' : 'hist_cost_crypto_twd';
+                                            assetKey = chartCurrency === 'USD' ? 'crypto_usd' : 'crypto_twd';
+                                            costKey = chartCurrency === 'USD' ? 'hist_cost_crypto_usd' : 'hist_cost_crypto_twd';
                                         } else if (currentTab === 'tw_stock') {
-                                            assetKey = globalCurrency === 'USD' ? 'tw_stock_usd' : 'tw_stock_twd';
-                                            costKey = globalCurrency === 'USD' ? 'hist_cost_tw_stock_usd' : 'hist_cost_tw_stock_twd';
+                                            assetKey = chartCurrency === 'USD' ? 'tw_stock_usd' : 'tw_stock_twd';
+                                            costKey = chartCurrency === 'USD' ? 'hist_cost_tw_stock_usd' : 'hist_cost_tw_stock_twd';
                                         } else if (currentTab === 'us_stock') {
-                                            assetKey = globalCurrency === 'USD' ? 'us_stock_usd' : 'us_stock_twd';
-                                            costKey = globalCurrency === 'USD' ? 'hist_cost_us_stock_usd' : 'hist_cost_us_stock_twd';
+                                            assetKey = chartCurrency === 'USD' ? 'us_stock_usd' : 'us_stock_twd';
+                                            costKey = chartCurrency === 'USD' ? 'hist_cost_us_stock_usd' : 'hist_cost_us_stock_twd';
                                         }
 
                                         let allTimeProfit = snap[assetKey] - snap[costKey];
                                         let allTimeRoi = snap[costKey] > 0 ? (allTimeProfit / snap[costKey]) * 100 : 0;
                                         let roiSign = allTimeProfit >= 0 ? '+' : '';
                                         
-                                        footerStr += `\n------------------\n🏆 歷史總獲利: ${roiSign}${formatMoney(allTimeProfit, 2, globalCurrency)} (${roiSign}${allTimeRoi.toFixed(2)}%)`;
+                                        footerStr += `\n------------------\n🏆 歷史總獲利: ${roiSign}${formatMoney(allTimeProfit, 2, chartCurrency)} (${roiSign}${allTimeRoi.toFixed(2)}%)`;
                                     }
                                     
                                     let hoverIdx = items[0].dataIndex;
@@ -2296,7 +2346,7 @@
                 let targetValuePref = targetValue;
                 let costValuePref = costVal;
                 
-                if (globalCurrency === 'TWD' && isUsdAsset) {
+                if ((globalCurrency === 'TWD' || globalCurrency === 'NATIVE') && isUsdAsset) {
                     targetValuePref = targetValue * currentExchangeRate;
                     costValuePref = costVal * currentExchangeRate;
                 } else if (globalCurrency === 'USD' && !isUsdAsset) {
@@ -2331,8 +2381,9 @@
             let diffSign = diffTotal >= 0 ? '+' : '';
             let diffColor = diffTotal >= 0 ? 'var(--badge-profit-text)' : 'var(--badge-loss-text)';
             let prefix = globalCurrency === 'USD' ? '$' : 'NT$';
+            let altSimTotal = globalCurrency === 'NATIVE' ? ` <span style="font-size:11px; margin-left:4px; opacity:0.8;">(≈ $${(simTotal / currentExchangeRate).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})})</span>` : '';
             
-            document.getElementById('sim-total-value').innerHTML = `${prefix}${simTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} <span style="color: ${diffColor}; font-size: 0.85em;">(${diffSign}${diffPct.toFixed(2)}%)</span>`;
+            document.getElementById('sim-total-value').innerHTML = `${prefix}${simTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}${altSimTotal} <span style="color: ${diffColor}; font-size: 0.85em;">(${diffSign}${diffPct.toFixed(2)}%)</span>`;
             document.getElementById('sim-diff-value').innerHTML = `<span style="color: ${diffColor};">${diffSign}${prefix}${Math.abs(diffTotal).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>`;
         }
 
