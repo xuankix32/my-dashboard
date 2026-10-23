@@ -1569,7 +1569,12 @@
                         <span id="expense-chart-title">📊 支出分類佔比</span>
                     </h3>
                     <div style="width: 100%; max-width: 240px; margin: 0 auto; position: relative;">
-                        <canvas id="expenseCategoryChart" width="240" height="240"></canvas>
+                        <canvas id="expenseCategoryChart" width="240" height="240" style="position: relative; z-index: 2;"></canvas>
+                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; width: 80%; z-index: 1;">
+                            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 2px;" id="expense-pie-center-sub">期間總支出</div>
+                            <div style="font-size: 16px; font-weight: 800; color: var(--badge-loss-text); margin-bottom: 2px;" id="expense-pie-center-main">NT$ 0</div>
+                            <div style="font-size: 10.5px; color: var(--text-muted);" id="expense-pie-center-alt">0 筆支出</div>
+                        </div>
                     </div>
                     <div id="expense-cat-legend" style="margin-top: 16px; display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto; padding-right: 5px;">
                         <!-- 圖例由 JS 生成 -->
@@ -2631,6 +2636,20 @@
             if (expensePeriodType === 'year') prefix = `${currentExpenseYear}年度`;
             else if (expensePeriodType === 'custom') prefix = '自訂區間';
             if (chartTitle) chartTitle.innerText = `📊 ${prefix} 支出分類佔比`;
+
+            // 更新圓餅圖中心呈現總額與筆數 (仿資產圓餅圖中心顯示)
+            const pieCenterMain = document.getElementById('expense-pie-center-main');
+            const pieCenterSub = document.getElementById('expense-pie-center-sub');
+            const pieCenterAlt = document.getElementById('expense-pie-center-alt');
+            if (pieCenterMain) {
+                pieCenterMain.innerText = `NT$ ${Math.round(totalExpense).toLocaleString()}`;
+            }
+            if (pieCenterSub) {
+                pieCenterSub.innerText = `${prefix}總支出`;
+            }
+            if (pieCenterAlt) {
+                pieCenterAlt.innerText = `${activeItems.length} 筆支出`;
+            }
 
             let sortedCats = Object.keys(catMap).sort((a, b) => catMap[b] - catMap[a]);
 
