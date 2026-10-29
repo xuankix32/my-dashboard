@@ -531,6 +531,24 @@
             border-color: var(--accent-blue);
             box-shadow: 0 0 0 1px var(--accent-blue);
         }
+        .cat-chip.dragging {
+            opacity: 0.45;
+            transform: scale(0.96);
+            border: 2px dashed var(--accent-blue) !important;
+            cursor: grabbing !important;
+        }
+        .cat-chip.drag-over {
+            border: 2px solid var(--accent-blue) !important;
+            background: var(--bg-hover) !important;
+            transform: translateY(-2px);
+        }
+        .cat-chip.long-pressing {
+            transform: scale(1.08) !important;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4) !important;
+            border-color: var(--accent-blue) !important;
+            z-index: 20 !important;
+            transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+        }
         .cat-chip-icon {
             font-size: 18px;
             margin-bottom: 3px;
@@ -544,7 +562,7 @@
 
         .entry-details-row {
             display: grid;
-            grid-template-columns: 140px 1fr auto;
+            grid-template-columns: minmax(190px, auto) 1fr auto;
             gap: 10px;
             align-items: center;
         }
@@ -858,6 +876,16 @@
         .item-actions {
             display: flex;
             gap: 6px;
+        }
+
+        /* 支出分類圖例項目互動樣式 */
+        .expense-cat-legend-row {
+            transition: all 0.18s ease;
+            user-select: none;
+        }
+        .expense-cat-legend-row:hover {
+            background: var(--bg-hover) !important;
+            transform: translateX(3px);
         }
         .item-btn {
             background: transparent;
@@ -1304,6 +1332,7 @@
                 <button type="button" class="period-type-btn active" id="period-btn-month" onclick="setExpensePeriodType('month')"><span>📆 按月</span><span class="desktop-only-inline">檢視</span></button>
                 <button type="button" class="period-type-btn" id="period-btn-year" onclick="setExpensePeriodType('year')"><span>📅 按年</span><span class="desktop-only-inline">檢視</span></button>
                 <button type="button" class="period-type-btn" id="period-btn-custom" onclick="setExpensePeriodType('custom')"><span>⏱️ 自訂</span><span class="desktop-only-inline">區間</span></button>
+                <button type="button" class="period-type-btn" id="period-btn-all" onclick="setExpensePeriodType('all')"><span>🌐 全部</span><span class="desktop-only-inline">時間</span></button>
             </div>
 
             <!-- 月份導航 (按月模式) -->
@@ -1311,6 +1340,7 @@
                 <button class="month-nav-btn" onclick="changeExpenseMonth(-1)" title="上一月">◀</button>
                 <span class="current-period-display" id="expense-month-title">2026 年 10 月</span>
                 <button class="month-nav-btn" onclick="changeExpenseMonth(1)" title="下一月">▶</button>
+                <button class="sort-btn" onclick="goToToday()" title="回到今日並選定當天明細" style="font-weight: 700; color: var(--accent-blue);">📍 今日</button>
                 <button class="sort-btn" onclick="goToCurrentExpenseMonth()">回到本月</button>
             </div>
 
@@ -1319,6 +1349,7 @@
                 <button class="month-nav-btn" onclick="changeExpenseYear(-1)" title="上一年">◀</button>
                 <span class="current-period-display" id="expense-year-title">2026 年</span>
                 <button class="month-nav-btn" onclick="changeExpenseYear(1)" title="下一年">▶</button>
+                <button class="sort-btn" onclick="goToToday()" title="回到今日並選定當天明細" style="font-weight: 700; color: var(--accent-blue);">📍 今日</button>
                 <button class="sort-btn" onclick="goToCurrentExpenseYear()">回到今年</button>
             </div>
 
@@ -1334,7 +1365,16 @@
                         <button class="sort-btn" style="padding: 4px 8px; font-size: 11px;" onclick="setCustomRangePreset(90)">近90天</button>
                         <button class="sort-btn" style="padding: 4px 8px; font-size: 11px;" onclick="setCustomRangePreset(180)">近半年</button>
                         <button class="sort-btn" style="padding: 4px 8px; font-size: 11px;" onclick="setCustomRangePreset('ytd')">今年至今</button>
+                        <button class="sort-btn" style="padding: 4px 8px; font-size: 11px; font-weight: 700; color: var(--accent-blue);" onclick="goToToday()" title="回到今日並選定當天明細">📍 今日</button>
                     </div>
+                </div>
+            </div>
+
+            <!-- 全部時間導航 (全部模式) -->
+            <div class="period-nav-container" id="nav-container-all" style="display: none;">
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <span class="current-period-display" id="expense-all-title">🌐 全部歷史紀錄</span>
+                    <button class="sort-btn" style="padding: 4px 10px; font-size: 11px; font-weight: 700; color: var(--accent-blue);" onclick="goToToday()" title="回到今日並選定當天明細">📍 今日</button>
                 </div>
             </div>
 
@@ -1436,14 +1476,22 @@
                     </div>
 
                     <!-- 分類矩陣 -->
-                    <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px; font-weight: 600;">選擇分類：</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">選擇分類：</span>
+                        <span style="font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 4px;">
+                            <span>🖐️ 長按或拖曳可調整順序</span>
+                        </span>
+                    </div>
                     <div class="category-matrix" id="category-matrix-container">
                         <!-- 動態由 JS 渲染 18 個分類徽章 -->
                     </div>
 
                     <!-- 日期與備註 -->
                     <div class="entry-details-row">
-                        <input type="date" id="expense-date-input" class="entry-input">
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                            <input type="date" id="expense-date-input" class="entry-input" style="flex: 1; min-width: 0;">
+                            <button type="button" class="sort-btn" onclick="setExpenseDateToToday()" title="快捷填入今日日期" style="padding: 10px 10px; white-space: nowrap; font-size: 12px; font-weight: 700; color: var(--accent-blue);">今日</button>
+                        </div>
                         <input type="text" id="expense-note-input" class="entry-input" placeholder="填寫備註 (如: 7-11、摩斯、高鐵...)" autocomplete="off" onkeydown="if(event.key==='Enter') saveExpense()">
                         <div style="display: flex; gap: 8px;">
                             <button type="button" class="btn-save-expense" id="btn-save-expense" onclick="saveExpense()">
@@ -1721,7 +1769,7 @@
             expensePeriodType = type;
             localStorage.setItem('wealthExpensePeriod', type);
 
-            ['month', 'year', 'custom'].forEach(p => {
+            ['month', 'year', 'custom', 'all'].forEach(p => {
                 const btn = document.getElementById('period-btn-' + p);
                 const nav = document.getElementById('nav-container-' + p);
                 if (btn) btn.classList.toggle('active', p === type);
@@ -1782,7 +1830,7 @@
             renderExpenseUI();
         }
 
-        function getFilteredExpensesForActivePeriod() {
+        function getFilteredExpensesForActivePeriod(ignoreCategory = false) {
             return expenses.filter(e => {
                 if (!e.date) return false;
                 if (expensePeriodType === 'month') {
@@ -1794,7 +1842,7 @@
                 }
 
                 if (expenseAccountFilter !== 'all' && e.account !== expenseAccountFilter) return false;
-                if (expenseCategoryFilter !== 'all' && e.category !== expenseCategoryFilter) return false;
+                if (!ignoreCategory && expenseCategoryFilter !== 'all' && e.category !== expenseCategoryFilter) return false;
                 if (expenseSearchQuery) {
                     let matchNote = e.note && e.note.toLowerCase().includes(expenseSearchQuery);
                     let matchCat = e.category && e.category.toLowerCase().includes(expenseSearchQuery);
@@ -1802,6 +1850,34 @@
                 }
                 return true;
             });
+        }
+
+        let isMatrixDragging = false;
+        let dragSourceEl = null;
+
+        function getCustomCategoryOrder(type) {
+            const key = 'wealthCategoryOrder_' + type;
+            try {
+                const stored = localStorage.getItem(key);
+                return stored ? JSON.parse(stored) : null;
+            } catch(e) {
+                return null;
+            }
+        }
+
+        function saveCustomCategoryOrder(type, orderArray) {
+            const key = 'wealthCategoryOrder_' + type;
+            try {
+                localStorage.setItem(key, JSON.stringify(orderArray));
+            } catch(e) {}
+        }
+
+        function handleCatChipClick(e, catName) {
+            if (isMatrixDragging) {
+                isMatrixDragging = false;
+                return;
+            }
+            setExpenseCategory(catName);
         }
 
         function initExpenseCategoryMatrix() {
@@ -1815,6 +1891,19 @@
                 list = expenseCategoryPresets.filter(c => !c.isIncome);
             }
 
+            // 套用自訂排序
+            const customOrder = getCustomCategoryOrder(currentExpenseType);
+            if (customOrder && Array.isArray(customOrder)) {
+                list = [...list].sort((a, b) => {
+                    let idxA = customOrder.indexOf(a.name);
+                    let idxB = customOrder.indexOf(b.name);
+                    if (idxA === -1 && idxB === -1) return 0;
+                    if (idxA === -1) return 1;
+                    if (idxB === -1) return -1;
+                    return idxA - idxB;
+                });
+            }
+
             if (!list.some(c => c.name === selectedExpenseCategory)) {
                 selectedExpenseCategory = list[0].name;
             }
@@ -1823,13 +1912,151 @@
             list.forEach(cat => {
                 let isActive = cat.name === selectedExpenseCategory;
                 html += `
-                    <div class="cat-chip ${isActive ? 'active' : ''}" onclick="setExpenseCategory('${cat.name}')">
+                    <div class="cat-chip ${isActive ? 'active' : ''}" 
+                         draggable="true"
+                         data-cat-name="${cat.name}"
+                         onclick="handleCatChipClick(event, '${cat.name}')"
+                         title="點選切換分類；長按或按住滑鼠可拖曳排序">
                         <span class="cat-chip-icon">${cat.emoji}</span>
                         <span class="cat-chip-name">${cat.name}</span>
                     </div>
                 `;
             });
             container.innerHTML = html;
+
+            setupCategoryMatrixDragAndDrop(container);
+        }
+
+        function setupCategoryMatrixDragAndDrop(container) {
+            const chips = container.querySelectorAll('.cat-chip');
+
+            chips.forEach(chip => {
+                // ---------- 電腦原生 Drag & Drop ----------
+                chip.addEventListener('dragstart', (e) => {
+                    dragSourceEl = chip;
+                    isMatrixDragging = true;
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', chip.getAttribute('data-cat-name'));
+                    setTimeout(() => chip.classList.add('dragging'), 0);
+                });
+
+                chip.addEventListener('dragend', () => {
+                    chip.classList.remove('dragging');
+                    chips.forEach(c => c.classList.remove('drag-over'));
+                    setTimeout(() => { isMatrixDragging = false; }, 60);
+                });
+
+                chip.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    return false;
+                });
+
+                chip.addEventListener('dragenter', (e) => {
+                    e.preventDefault();
+                    if (chip !== dragSourceEl) {
+                        chip.classList.add('drag-over');
+                    }
+                });
+
+                chip.addEventListener('dragleave', () => {
+                    chip.classList.remove('drag-over');
+                });
+
+                chip.addEventListener('drop', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    chip.classList.remove('drag-over');
+                    if (dragSourceEl && dragSourceEl !== chip) {
+                        const allChips = Array.from(container.querySelectorAll('.cat-chip'));
+                        const fromIdx = allChips.indexOf(dragSourceEl);
+                        const toIdx = allChips.indexOf(chip);
+                        if (fromIdx < toIdx) {
+                            chip.after(dragSourceEl);
+                        } else {
+                            chip.before(dragSourceEl);
+                        }
+                        persistCurrentMatrixOrder(container);
+                    }
+                    return false;
+                });
+
+                // ---------- 行動裝置 / 觸控長按拖曳 (Touch Long Press) ----------
+                let longPressTimer = null;
+                let startX = 0, startY = 0;
+                let isTouchDragging = false;
+
+                chip.addEventListener('touchstart', (e) => {
+                    if (e.touches.length !== 1) return;
+                    isTouchDragging = false;
+                    startX = e.touches[0].clientX;
+                    startY = e.touches[0].clientY;
+
+                    longPressTimer = setTimeout(() => {
+                        isTouchDragging = true;
+                        isMatrixDragging = true;
+                        dragSourceEl = chip;
+                        chip.classList.add('long-pressing');
+                        chip.classList.add('dragging');
+                        if (navigator.vibrate) navigator.vibrate(35);
+                    }, 320);
+                }, { passive: true });
+
+                chip.addEventListener('touchmove', (e) => {
+                    if (e.touches.length !== 1) return;
+                    let currentX = e.touches[0].clientX;
+                    let currentY = e.touches[0].clientY;
+
+                    if (!isTouchDragging) {
+                        if (Math.abs(currentX - startX) > 8 || Math.abs(currentY - startY) > 8) {
+                            clearTimeout(longPressTimer);
+                        }
+                        return;
+                    }
+
+                    if (e.cancelable) e.preventDefault();
+
+                    let targetEl = document.elementFromPoint(currentX, currentY);
+                    if (targetEl) {
+                        let targetChip = targetEl.closest('.cat-chip');
+                        chips.forEach(c => c.classList.remove('drag-over'));
+                        if (targetChip && targetChip !== dragSourceEl && container.contains(targetChip)) {
+                            targetChip.classList.add('drag-over');
+                            const allChips = Array.from(container.querySelectorAll('.cat-chip'));
+                            const fromIdx = allChips.indexOf(dragSourceEl);
+                            const toIdx = allChips.indexOf(targetChip);
+                            if (fromIdx < toIdx) {
+                                targetChip.after(dragSourceEl);
+                            } else {
+                                targetChip.before(dragSourceEl);
+                            }
+                        }
+                    }
+                }, { passive: false });
+
+                const finishTouch = () => {
+                    clearTimeout(longPressTimer);
+                    if (isTouchDragging) {
+                        chip.classList.remove('long-pressing');
+                        chip.classList.remove('dragging');
+                        chips.forEach(c => c.classList.remove('drag-over'));
+                        persistCurrentMatrixOrder(container);
+                        setTimeout(() => {
+                            isTouchDragging = false;
+                            isMatrixDragging = false;
+                        }, 120);
+                    }
+                };
+
+                chip.addEventListener('touchend', finishTouch);
+                chip.addEventListener('touchcancel', finishTouch);
+            });
+        }
+
+        function persistCurrentMatrixOrder(container) {
+            const chips = container.querySelectorAll('.cat-chip');
+            const newOrder = Array.from(chips).map(c => c.getAttribute('data-cat-name')).filter(Boolean);
+            saveCustomCategoryOrder(currentExpenseType, newOrder);
         }
 
         function populateExpenseCategoryFilter() {
@@ -2034,6 +2261,47 @@
             renderExpenseUI();
         }
 
+        function setExpenseDateToToday() {
+            let today = new Date().toISOString().split('T')[0];
+            const dateInput = document.getElementById('expense-date-input');
+            if (dateInput) {
+                dateInput.value = today;
+                dateInput.style.outline = '2px solid var(--accent-blue)';
+                setTimeout(() => { dateInput.style.outline = 'none'; }, 400);
+            }
+        }
+
+        function goToToday() {
+            let today = new Date().toISOString().split('T')[0];
+            selectedExpenseDate = today;
+            currentExpenseMonth = today.substring(0, 7);
+            currentExpenseYear = today.substring(0, 4);
+
+            if (expensePeriodType !== 'month') {
+                setExpensePeriodType('month');
+            }
+
+            if (expenseViewMode !== 'calendar') {
+                switchExpenseViewMode('calendar', false);
+            }
+
+            if (expenseCategoryFilter !== 'all') {
+                expenseCategoryFilter = 'all';
+                const catSelect = document.getElementById('expense-category-filter');
+                if (catSelect) catSelect.value = 'all';
+            }
+
+            const dateInput = document.getElementById('expense-date-input');
+            if (dateInput) dateInput.value = today;
+
+            renderExpenseUI();
+
+            const dayPanel = document.getElementById('selected-day-panel');
+            if (dayPanel) {
+                dayPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
         function goToCurrentExpenseMonth() {
             let today = new Date().toISOString().split('T')[0];
             selectedExpenseDate = today;
@@ -2064,6 +2332,30 @@
                 if (listView) listView.style.display = 'block';
             }
             if (doRender) renderExpenseUI();
+        }
+
+        function filterExpenseByCategory(categoryName) {
+            if (expenseCategoryFilter === categoryName) {
+                expenseCategoryFilter = 'all';
+            } else {
+                expenseCategoryFilter = categoryName;
+            }
+
+            const catSelect = document.getElementById('expense-category-filter');
+            if (catSelect) {
+                catSelect.value = expenseCategoryFilter;
+            }
+
+            if (expensePeriodType === 'month' && expenseViewMode !== 'list') {
+                switchExpenseViewMode('list', false);
+            }
+
+            renderExpenseUI();
+
+            const listView = document.getElementById('expense-list-view');
+            if (listView) {
+                listView.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
         }
 
         function onExpenseFilterChange() {
@@ -2116,6 +2408,15 @@
                     if (listView) listView.style.display = 'block';
                     renderExpenseList();
                 }
+            } else if (expensePeriodType === 'all') {
+                if (toolbar) toolbar.style.display = 'flex';
+                if (viewModeToggle) viewModeToggle.style.display = 'none'; // 全部時間固定為滾輪清單
+                if (annualSummary) annualSummary.style.display = 'none';
+                if (calWrapper) calWrapper.style.display = 'none';
+                if (listView) {
+                    listView.style.display = 'block';
+                    renderExpenseList();
+                }
             } else { // 'custom'
                 if (toolbar) toolbar.style.display = 'flex';
                 if (viewModeToggle) viewModeToggle.style.display = 'none'; // 自訂區間固定為滾輪清單
@@ -2140,6 +2441,17 @@
             const yTitle = document.getElementById('expense-year-title');
             if (yTitle) {
                 yTitle.innerText = `${currentExpenseYear} 年`;
+            }
+            const allTitle = document.getElementById('expense-all-title');
+            if (allTitle) {
+                if (expenses.length > 0) {
+                    let dates = expenses.map(e => e.date).filter(Boolean).sort();
+                    let minDate = dates[0] || '';
+                    let maxDate = dates[dates.length - 1] || '';
+                    allTitle.innerText = `🌐 全部歷史紀錄 (${minDate} ~ ${maxDate})`;
+                } else {
+                    allTitle.innerText = '🌐 全部歷史紀錄';
+                }
             }
         }
 
@@ -2169,6 +2481,7 @@
 
             let prefix = '本月';
             if (expensePeriodType === 'year') prefix = `${currentExpenseYear}年度`;
+            else if (expensePeriodType === 'all') prefix = '全部時間';
             else if (expensePeriodType === 'custom') prefix = '區間';
 
             const lInc = document.getElementById('kpi-label-income');
@@ -2546,8 +2859,24 @@
             if (countBadge) {
                 let prefix = '本月';
                 if (expensePeriodType === 'year') prefix = `${currentExpenseYear} 年度`;
+                else if (expensePeriodType === 'all') prefix = '全部時間';
                 else if (expensePeriodType === 'custom') prefix = '自訂區間';
-                countBadge.innerHTML = `📋 ${prefix}交易明細 <span style="font-size: 12px; font-weight: normal; color: var(--text-muted);">(共 ${filtered.length} 筆，滾輪滾動瀏覽)</span>`;
+
+                if (expenseCategoryFilter !== 'all') {
+                    let catObj = expenseCategoryPresets.find(c => c.name === expenseCategoryFilter) || { emoji: '🏷️', name: expenseCategoryFilter };
+                    countBadge.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <span>📋 ${prefix}明細</span>
+                            <span style="font-size: 12px; background: rgba(59, 130, 246, 0.15); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.35); padding: 2px 8px; border-radius: 12px; display: inline-flex; align-items: center; gap: 6px; font-weight: 600;">
+                                類別：${catObj.emoji} ${expenseCategoryFilter}
+                                <button onclick="filterExpenseByCategory('all')" style="border: none; background: transparent; color: #3b82f6; cursor: pointer; font-size: 12px; font-weight: bold; padding: 0 2px; line-height: 1;" title="清除分類篩選">✕</button>
+                            </span>
+                            <span style="font-size: 12px; font-weight: normal; color: var(--text-muted);">(共 ${filtered.length} 筆)</span>
+                        </div>
+                    `;
+                } else {
+                    countBadge.innerHTML = `📋 ${prefix}交易明細 <span style="font-size: 12px; font-weight: normal; color: var(--text-muted);">(共 ${filtered.length} 筆，滾輪滾動瀏覽)</span>`;
+                }
             }
 
             if (filtered.length === 0) {
@@ -2623,7 +2952,7 @@
             const chartTitle = document.getElementById('expense-chart-title');
             if (!canvas || !legendContainer) return;
 
-            let activeItems = getFilteredExpensesForActivePeriod().filter(e => e.type === '支');
+            let activeItems = getFilteredExpensesForActivePeriod(true).filter(e => e.type === '支');
             let catMap = {};
             let totalExpense = 0;
 
@@ -2634,6 +2963,7 @@
 
             let prefix = '本月';
             if (expensePeriodType === 'year') prefix = `${currentExpenseYear}年度`;
+            else if (expensePeriodType === 'all') prefix = '全部時間';
             else if (expensePeriodType === 'custom') prefix = '自訂區間';
             if (chartTitle) chartTitle.innerText = `📊 ${prefix} 支出分類佔比`;
 
@@ -2664,16 +2994,21 @@
                 let amt = catMap[catName];
                 let pct = totalExpense > 0 ? (amt / totalExpense * 100).toFixed(1) : 0;
                 let catObj = expenseCategoryPresets.find(c => c.name === catName) || { emoji: '🏷️', color: '#8b949e' };
+                let isSelected = expenseCategoryFilter === catName;
 
                 labels.push(`${catName} (${pct}%)`);
                 data.push(amt);
                 colors.push(catObj.color);
 
                 legendHtml += `
-                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 3px 0;">
+                    <div class="expense-cat-legend-row" 
+                         onclick="filterExpenseByCategory('${catName}')" 
+                         title="點擊查看「${catName}」消費明細"
+                         style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 5px 8px; border-radius: 6px; cursor: pointer; ${isSelected ? 'background: rgba(59, 130, 246, 0.16); border: 1px solid rgba(59, 130, 246, 0.4); font-weight: 700;' : 'border: 1px solid transparent;'}">
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: ${catObj.color};"></span>
+                            <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: ${catObj.color}; flex-shrink: 0;"></span>
                             <span>${catObj.emoji} ${catName}</span>
+                            ${isSelected ? '<span style="font-size: 10px; color: #3b82f6; font-weight: normal; margin-left: 2px;">(已選)</span>' : ''}
                         </div>
                         <div style="font-weight: 700;">NT$ ${Math.round(amt).toLocaleString()} <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">(${pct}%)</span></div>
                     </div>
@@ -2706,6 +3041,20 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    onClick: (evt, activeEls) => {
+                        if (activeEls && activeEls.length > 0) {
+                            const idx = activeEls[0].index;
+                            const clickedCat = sortedCats[idx];
+                            if (clickedCat) {
+                                filterExpenseByCategory(clickedCat);
+                            }
+                        }
+                    },
+                    onHover: (evt, activeEls) => {
+                        if (evt.native && evt.native.target) {
+                            evt.native.target.style.cursor = activeEls.length > 0 ? 'pointer' : 'default';
+                        }
+                    },
                     plugins: {
                         legend: { display: false },
                         tooltip: {
@@ -2731,7 +3080,7 @@
             const container = document.getElementById('expense-account-distribution');
             if (!container) return;
 
-            let activeItems = getFilteredExpensesForActivePeriod().filter(e => e.type === '支');
+            let activeItems = getFilteredExpensesForActivePeriod(true).filter(e => e.type === '支');
             let accMap = { '信用卡': 0, '現金': 0, '銀行': 0 };
             let total = 0;
 
