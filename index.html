@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>全方位資產戰情室 (Pro Max版)</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="favicon.png">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         (function() {
@@ -335,6 +337,10 @@
             font-weight: 800;
             color: var(--text-heading);
             letter-spacing: 0.5px;
+        }
+        .current-period-display.clickable:hover {
+            background: var(--bg-hover);
+            color: var(--accent-blue);
         }
         .period-actions {
             display: flex;
@@ -1338,7 +1344,12 @@
             <!-- 月份導航 (按月模式) -->
             <div class="period-nav-container" id="nav-container-month">
                 <button class="month-nav-btn" onclick="changeExpenseMonth(-1)" title="上一月">◀</button>
-                <span class="current-period-display" id="expense-month-title">2026 年 10 月</span>
+                <div class="month-picker-wrapper" style="position: relative; display: inline-flex; align-items: center; cursor: pointer;" title="點擊快速選擇年月" onclick="const p = document.getElementById('expense-month-picker'); if (p && p.showPicker) { try { p.showPicker(); } catch(e){} }">
+                    <span class="current-period-display clickable" id="expense-month-title" style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; transition: background 0.15s ease, color 0.15s ease;">
+                        2026 年 10 月 <span style="font-size: 11px; opacity: 0.7;">▾</span>
+                    </span>
+                    <input type="month" id="expense-month-picker" style="position: absolute; opacity: 0; width: 100%; height: 100%; top: 0; left: 0; cursor: pointer; z-index: 2;" onchange="onDirectMonthSelect(this.value)">
+                </div>
                 <button class="month-nav-btn" onclick="changeExpenseMonth(1)" title="下一月">▶</button>
                 <button class="sort-btn" onclick="goToToday()" title="回到今日並選定當天明細" style="font-weight: 700; color: var(--accent-blue);">📍 今日</button>
                 <button class="sort-btn" onclick="goToCurrentExpenseMonth()">回到本月</button>
@@ -2252,6 +2263,23 @@
             renderExpenseUI();
         }
 
+        function onDirectMonthSelect(monthStr) {
+            if (!monthStr) return;
+            currentExpenseMonth = monthStr;
+            currentExpenseYear = monthStr.substring(0, 4);
+
+            if (!selectedExpenseDate.startsWith(monthStr)) {
+                selectedExpenseDate = `${monthStr}-01`;
+            }
+
+            const dateInput = document.getElementById('expense-date-input');
+            if (dateInput) {
+                dateInput.value = selectedExpenseDate;
+            }
+
+            renderExpenseUI();
+        }
+
         function changeExpenseMonth(delta) {
             let [y, m] = currentExpenseMonth.split('-').map(Number);
             m += delta;
@@ -2436,7 +2464,11 @@
             const mTitle = document.getElementById('expense-month-title');
             if (mTitle) {
                 let [y, m] = currentExpenseMonth.split('-');
-                mTitle.innerText = `${y} 年 ${parseInt(m, 10)} 月`;
+                mTitle.innerHTML = `${y} 年 ${parseInt(m, 10)} 月 <span style="font-size: 11px; opacity: 0.7;">▾</span>`;
+            }
+            const mPicker = document.getElementById('expense-month-picker');
+            if (mPicker) {
+                mPicker.value = currentExpenseMonth;
             }
             const yTitle = document.getElementById('expense-year-title');
             if (yTitle) {
