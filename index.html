@@ -91,9 +91,14 @@
         .card { background-color: var(--bg-card); padding: 25px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--card-shadow); transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease; }
         
         .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .header-placeholder { width: 140px; }
+        .header-placeholder { width: 220px; }
         .header-title { margin: 0; text-align: center; font-weight: 800; letter-spacing: 1px; color: var(--text-heading); }
-        .header-actions { width: 140px; display: flex; justify-content: flex-end; }
+        .header-actions { width: 220px; display: flex; justify-content: flex-end; gap: 8px; }
+        .privacy-active {
+            border-color: #f59e0b !important;
+            color: #f59e0b !important;
+            background: rgba(245, 158, 11, 0.12) !important;
+        }
         .theme-toggle-btn {
             background: var(--bg-card);
             border: 1px solid var(--border-color);
@@ -1102,6 +1107,10 @@
         <div class="header-placeholder"></div>
         <h1 class="header-title">🚀 戰情室 Dashboard</h1>
         <div class="header-actions">
+            <button id="privacy-toggle-btn" class="theme-toggle-btn" onclick="togglePrivacyMode()" title="切換隱私展示模式 (遮罩敏感金額)">
+                <span id="privacy-toggle-icon">👁️</span>
+                <span id="privacy-toggle-text">隱私展示</span>
+            </button>
             <button id="theme-toggle-btn" class="theme-toggle-btn" onclick="toggleTheme()" title="切換深色 / Solarized 淺色模式">
                 <span id="theme-toggle-icon">☀️</span>
                 <span id="theme-toggle-text">Solarized</span>
@@ -1679,6 +1688,14 @@
             { name: '薪資', emoji: '💵', color: '#3fb950', isIncome: true },
             { name: '回饋', emoji: '🎁', color: '#2ea043', isIncome: true }
         ];
+
+        let isPrivacyMode = localStorage.getItem('wealthPrivacyMode') === 'true';
+
+        function formatExpenseMoney(amt, prefix = '') {
+            const p = prefix ? prefix + ' ' : '';
+            if (isPrivacyMode) return p + 'NT$ ****';
+            return p + 'NT$ ' + Math.round(amt).toLocaleString();
+        }
 
         let currentAppMode = localStorage.getItem('wealthAppMode') || 'investment';
         let expenses = [];
@@ -2526,19 +2543,24 @@
             if (lNet) lNet.innerText = `${prefix}淨結餘`;
             if (lCard) lCard.innerText = `${prefix}信用卡累積`;
 
-            document.getElementById('kpi-expense-income').innerText = '+ NT$ ' + Math.round(totalIncome).toLocaleString();
+            document.getElementById('kpi-expense-income').innerText = formatExpenseMoney(totalIncome, '+');
             document.getElementById('kpi-expense-income-sub').innerText = `${countIncome} 筆收入`;
 
-            document.getElementById('kpi-expense-total').innerText = '- NT$ ' + Math.round(totalExpense).toLocaleString();
+            document.getElementById('kpi-expense-total').innerText = formatExpenseMoney(totalExpense, '-');
             document.getElementById('kpi-expense-total-sub').innerText = `${countExpense} 筆支出`;
 
-            document.getElementById('kpi-expense-net').innerText = (netSavings >= 0 ? '+' : '') + 'NT$ ' + Math.round(netSavings).toLocaleString();
-            document.getElementById('kpi-expense-net').style.color = netSavings >= 0 ? 'var(--accent-blue)' : 'var(--badge-loss-text)';
+            const netEl = document.getElementById('kpi-expense-net');
+            if (isPrivacyMode) {
+                netEl.innerText = (netSavings >= 0 ? '+' : '-') + ' NT$ ****';
+            } else {
+                netEl.innerText = (netSavings >= 0 ? '+' : '') + 'NT$ ' + Math.round(netSavings).toLocaleString();
+            }
+            netEl.style.color = netSavings >= 0 ? 'var(--accent-blue)' : 'var(--badge-loss-text)';
             
             document.getElementById('kpi-expense-savings').innerText = savingsRate.toFixed(1) + '%';
             document.getElementById('kpi-expense-savings-sub').innerText = netSavings >= 0 ? '儲蓄率正向' : '期間支出大於收入';
 
-            document.getElementById('kpi-expense-card').innerText = 'NT$ ' + Math.round(Math.max(0, cardPending)).toLocaleString();
+            document.getElementById('kpi-expense-card').innerText = formatExpenseMoney(Math.max(0, cardPending));
             document.getElementById('kpi-expense-card-sub').innerText = '信用卡刷卡總額';
         }
 
@@ -2614,9 +2636,10 @@
                             borderWidth: 1,
                             callbacks: {
                                 label: function(c) {
-                                    return ` ${c.dataset.label}: NT$ ${Math.round(c.parsed.y).toLocaleString()}`;
+                                    return ` ${c.dataset.label}: ${formatExpenseMoney(c.parsed.y)}`;
                                 },
                                 afterBody: function(items) {
+                                    if (isPrivacyMode) return '結餘: NT$ ****';
                                     if (!items || items.length < 2) return '';
                                     let inc = items[0].parsed.y;
                                     let exp = items[1].parsed.y;
@@ -2636,7 +2659,10 @@
                             grid: { color: isLightMode ? '#d5ccb6' : '#30363d' },
                             ticks: {
                                 color: isLightMode ? '#657b83' : '#8b949e',
-                                callback: function(val) { return '$' + (val >= 1000 ? (val / 1000) + 'k' : val); }
+                                callback: function(val) {
+                                    if (isPrivacyMode) return '****';
+                                    return '$' + (val >= 1000 ? (val / 1000) + 'k' : val);
+                                }
                             }
                         }
                     }
@@ -2702,12 +2728,17 @@
                     ? `<button class="sort-btn" style="padding: 4px 10px; font-size: 12px; margin: 0 auto;" onclick="goToSpecificExpenseMonth('${d.monthKey}')">📅 查看當月</button>`
                     : `<span style="font-size: 12px; color: var(--text-muted);">-</span>`;
 
+                let netDisplay = '-';
+                if (d.count > 0) {
+                    netDisplay = isPrivacyMode ? (net >= 0 ? '+' : '-') + ' NT$ ****' : netPrefix + 'NT$ ' + Math.round(net).toLocaleString();
+                }
+
                 rowsHtml += `
                     <tr style="border-bottom: 1px solid var(--border-subtle); height: 42px;">
                         <td style="padding: 8px 12px; font-weight: 700; color: var(--text-heading);">${currentExpenseYear} 年 ${d.month} 月</td>
-                        <td style="padding: 8px 12px; text-align: right; color: var(--badge-profit-text); font-weight: 600;">${d.income > 0 ? '+ NT$ ' + Math.round(d.income).toLocaleString() : '-'}</td>
-                        <td style="padding: 8px 12px; text-align: right; color: var(--badge-loss-text); font-weight: 600;">${d.expense > 0 ? '- NT$ ' + Math.round(d.expense).toLocaleString() : '-'}</td>
-                        <td style="padding: 8px 12px; text-align: right; color: ${netColor}; font-weight: 700;">${d.count > 0 ? netPrefix + 'NT$ ' + Math.round(net).toLocaleString() : '-'}</td>
+                        <td style="padding: 8px 12px; text-align: right; color: var(--badge-profit-text); font-weight: 600;">${d.income > 0 ? formatExpenseMoney(d.income, '+') : '-'}</td>
+                        <td style="padding: 8px 12px; text-align: right; color: var(--badge-loss-text); font-weight: 600;">${d.expense > 0 ? formatExpenseMoney(d.expense, '-') : '-'}</td>
+                        <td style="padding: 8px 12px; text-align: right; color: ${netColor}; font-weight: 700;">${netDisplay}</td>
                         <td style="padding: 8px 12px; text-align: right; color: #bc8cff; font-weight: 600;">${savingsRateStr}</td>
                         <td style="padding: 8px 12px; text-align: center; color: var(--text-muted); font-size: 12px;">${d.count > 0 ? d.count + ' 筆' : '-'}</td>
                         <td style="padding: 8px 12px; text-align: center;">${actionBtn}</td>
@@ -2719,13 +2750,14 @@
             let totalSavingsRateStr = totalIncome > 0 ? (totalNet / totalIncome * 100).toFixed(1) + '%' : '-';
             let totalNetColor = totalNet > 0 ? 'var(--badge-profit-text)' : (totalNet < 0 ? 'var(--badge-loss-text)' : 'var(--text-muted)');
             let totalNetPrefix = totalNet > 0 ? '+' : '';
+            let totalNetDisplay = isPrivacyMode ? (totalNet >= 0 ? '+' : '-') + ' NT$ ****' : totalNetPrefix + 'NT$ ' + Math.round(totalNet).toLocaleString();
 
             rowsHtml += `
                 <tr style="border-top: 2px solid var(--border-color); background: var(--bg-hover); font-weight: 800;">
                     <td style="padding: 10px 12px; color: var(--accent-blue);">年度合計 (${currentExpenseYear})</td>
-                    <td style="padding: 10px 12px; text-align: right; color: var(--badge-profit-text);">+ NT$ ${Math.round(totalIncome).toLocaleString()}</td>
-                    <td style="padding: 10px 12px; text-align: right; color: var(--badge-loss-text);">- NT$ ${Math.round(totalExpense).toLocaleString()}</td>
-                    <td style="padding: 10px 12px; text-align: right; color: ${totalNetColor};">${totalNetPrefix}NT$ ${Math.round(totalNet).toLocaleString()}</td>
+                    <td style="padding: 10px 12px; text-align: right; color: var(--badge-profit-text);">${formatExpenseMoney(totalIncome, '+')}</td>
+                    <td style="padding: 10px 12px; text-align: right; color: var(--badge-loss-text);">${formatExpenseMoney(totalExpense, '-')}</td>
+                    <td style="padding: 10px 12px; text-align: right; color: ${totalNetColor};">${totalNetDisplay}</td>
                     <td style="padding: 10px 12px; text-align: right; color: #bc8cff;">${totalSavingsRateStr}</td>
                     <td style="padding: 10px 12px; text-align: center; color: var(--text-heading); font-size: 12px;">${totalCount} 筆</td>
                     <td style="padding: 10px 12px; text-align: center; color: var(--text-muted);">-</td>
@@ -2779,10 +2811,10 @@
 
                         let expBadges = '';
                         if (dayData.expense > 0) {
-                            expBadges += `<span class="day-amt-expense">- ${Math.round(dayData.expense).toLocaleString()}</span>`;
+                            expBadges += `<span class="day-amt-expense">- ${isPrivacyMode ? '****' : Math.round(dayData.expense).toLocaleString()}</span>`;
                         }
                         if (dayData.income > 0) {
-                            expBadges += `<span class="day-amt-income">+ ${Math.round(dayData.income).toLocaleString()}</span>`;
+                            expBadges += `<span class="day-amt-income">+ ${isPrivacyMode ? '****' : Math.round(dayData.income).toLocaleString()}</span>`;
                         }
 
                         rowHtml += `
@@ -2839,8 +2871,8 @@
             let dayOfWeek = weekdays[dObj.getDay()] || '';
 
             if (titleEl) titleEl.innerHTML = `<span>📅 ${selectedExpenseDate} (${dayOfWeek}) 明細</span> <span style="font-size: 13px; font-weight: normal; color: var(--text-muted); margin-left: 8px;">共 ${dayItems.length} 筆</span>`;
-            if (expEl) expEl.innerText = `支出: NT$ ${Math.round(dayExpense).toLocaleString()}`;
-            if (incEl) incEl.innerText = `收入: NT$ ${Math.round(dayIncome).toLocaleString()}`;
+            if (expEl) expEl.innerText = `支出: ${formatExpenseMoney(dayExpense)}`;
+            if (incEl) incEl.innerText = `收入: ${formatExpenseMoney(dayIncome)}`;
 
             if (dayItems.length === 0) {
                 listEl.innerHTML = `
@@ -2867,7 +2899,7 @@
                         </div>
                         <div class="item-amt-info">
                             <span class="item-amount-val ${isExp ? 'expense' : 'income'}">
-                                ${isExp ? '-' : '+'} NT$ ${Math.round(e.amount).toLocaleString()}
+                                ${formatExpenseMoney(e.amount, isExp ? '-' : '+')}
                             </span>
                             <div class="item-actions">
                                 <button class="item-btn" onclick="editExpense('${e.id}')" title="編輯">✏️</button>
@@ -2943,8 +2975,8 @@
                         <div class="day-group-header">
                             <div>📅 ${d} (${dayOfWeek}) · ${items.length} 筆</div>
                             <div>
-                                ${dayExp > 0 ? `<span style="color: var(--badge-loss-text); margin-right: 12px;">支出: NT$ ${Math.round(dayExp).toLocaleString()}</span>` : ''}
-                                ${dayInc > 0 ? `<span style="color: var(--badge-profit-text);">收入: NT$ ${Math.round(dayInc).toLocaleString()}</span>` : ''}
+                                ${dayExp > 0 ? `<span style="color: var(--badge-loss-text); margin-right: 12px;">支出: ${formatExpenseMoney(dayExp)}</span>` : ''}
+                                ${dayInc > 0 ? `<span style="color: var(--badge-profit-text);">收入: ${formatExpenseMoney(dayInc)}</span>` : ''}
                             </div>
                         </div>
                 `;
@@ -2961,7 +2993,7 @@
                             </div>
                             <div class="item-amt-info">
                                 <span class="item-amount-val ${isExp ? 'expense' : 'income'}">
-                                    ${isExp ? '-' : '+'} NT$ ${Math.round(e.amount).toLocaleString()}
+                                    ${formatExpenseMoney(e.amount, isExp ? '-' : '+')}
                                 </span>
                                 <div class="item-actions">
                                     <button class="item-btn" onclick="editExpense('${e.id}')" title="編輯">✏️</button>
@@ -3004,7 +3036,7 @@
             const pieCenterSub = document.getElementById('expense-pie-center-sub');
             const pieCenterAlt = document.getElementById('expense-pie-center-alt');
             if (pieCenterMain) {
-                pieCenterMain.innerText = `NT$ ${Math.round(totalExpense).toLocaleString()}`;
+                pieCenterMain.innerText = formatExpenseMoney(totalExpense);
             }
             if (pieCenterSub) {
                 pieCenterSub.innerText = `${prefix}總支出`;
@@ -3042,7 +3074,7 @@
                             <span>${catObj.emoji} ${catName}</span>
                             ${isSelected ? '<span style="font-size: 10px; color: #3b82f6; font-weight: normal; margin-left: 2px;">(已選)</span>' : ''}
                         </div>
-                        <div style="font-weight: 700;">NT$ ${Math.round(amt).toLocaleString()} <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">(${pct}%)</span></div>
+                        <div style="font-weight: 700;">${formatExpenseMoney(amt)} <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">(${pct}%)</span></div>
                     </div>
                 `;
             });
@@ -3098,7 +3130,7 @@
                             callbacks: {
                                 label: function(c) {
                                     if (c.label.includes('無支出')) return ' 所選期間無支出';
-                                    return ` ${c.label}: NT$ ${Math.round(c.parsed).toLocaleString()}`;
+                                    return ` ${c.label}: ${formatExpenseMoney(c.parsed)}`;
                                 }
                             }
                         }
@@ -3132,7 +3164,7 @@
                     <div>
                         <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px;">
                             <span style="font-weight: 600;">${icons[acc]} ${acc}</span>
-                            <span style="font-weight: 700;">NT$ ${Math.round(val).toLocaleString()} <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">(${pct}%)</span></span>
+                            <span style="font-weight: 700;">${formatExpenseMoney(val)} <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">(${pct}%)</span></span>
                         </div>
                         <div style="width: 100%; height: 6px; background: var(--bg-hover); border-radius: 3px; overflow: hidden;">
                             <div style="width: ${pct}%; height: 100%; background: ${barColors[acc]}; border-radius: 3px; transition: width 0.3s ease;"></div>
@@ -3326,6 +3358,38 @@
             }
         }
 
+        function updatePrivacyToggleUI(active) {
+            const iconEl = document.getElementById('privacy-toggle-icon');
+            const textEl = document.getElementById('privacy-toggle-text');
+            const btnEl = document.getElementById('privacy-toggle-btn');
+            if (!iconEl || !textEl || !btnEl) return;
+            if (active) {
+                iconEl.innerText = '🕶️';
+                textEl.innerText = '已遮罩';
+                btnEl.classList.add('privacy-active');
+                btnEl.title = '點擊關閉隱私模式 (顯示實際金額)';
+            } else {
+                iconEl.innerText = '👁️';
+                textEl.innerText = '隱私展示';
+                btnEl.classList.remove('privacy-active');
+                btnEl.title = '點擊開啟隱私模式 (遮罩敏感金額)';
+            }
+        }
+
+        function togglePrivacyMode() {
+            isPrivacyMode = !isPrivacyMode;
+            localStorage.setItem('wealthPrivacyMode', isPrivacyMode ? 'true' : 'false');
+            updatePrivacyToggleUI(isPrivacyMode);
+            
+            if (currentAppMode === 'expense') {
+                renderExpenseUI();
+            } else if (currentTab === 'simulator') {
+                renderSimulatorUI();
+            } else {
+                renderDashboardUI();
+            }
+        }
+
         function toggleTheme() {
             currentTheme = currentTheme === 'dark' ? 'solarized-light' : 'dark';
             localStorage.setItem('wealthTheme', currentTheme);
@@ -3380,11 +3444,23 @@
             'crypto': [{ value: 'BTC', text: 'BTC (比特幣)' }, { value: 'ETH', text: 'ETH (以太幣)' }, { value: 'ADA', text: 'ADA (Cardano)' }]
         };
 
-        const formatMoney = (num, decimals = 2, currency = 'USD') => {
+        const formatPrice = (num, decimals = 2, currency = 'USD') => {
             const symbol = currency === 'TWD' ? 'NT$' : '$';
             return symbol + num.toLocaleString('en-US', {minimumFractionDigits: decimals, maximumFractionDigits: decimals});
         };
-        const formatAmount = (num) => num.toLocaleString('en-US', {maximumFractionDigits: 5});
+
+        const formatMoney = (num, decimals = 2, currency = 'USD') => {
+            const symbol = currency === 'TWD' ? 'NT$' : '$';
+            if (isPrivacyMode) {
+                if (typeof num === 'number' && num < 0) return '-' + symbol + ' ****';
+                return symbol + ' ****';
+            }
+            return symbol + num.toLocaleString('en-US', {minimumFractionDigits: decimals, maximumFractionDigits: decimals});
+        };
+        const formatAmount = (num) => {
+            if (isPrivacyMode) return '****';
+            return num.toLocaleString('en-US', {maximumFractionDigits: 5});
+        };
         
         const formatDisplayDate = (dateStr) => {
             try {
@@ -4201,7 +4277,7 @@
                 let realizedBadge = `<span class="badge ${displayRealized > 0 ? 'profit-badge' : (displayRealized < 0 ? 'loss-badge' : 'neutral-badge')}">${displayRealized > 0 ? '+' : ''}${formatMoney(displayRealized, 2, rowCurrency)}</span>`;
                 let displayCatBadgeHTML = currentTab === 'all' ? `<span class="tag-badge" style="font-weight:normal; font-size:10px;">${categoryNames[portfolio[coin].category]}</span>` : '';
                 let precision = (coin === 'NIGHT') ? 5 : ((coin === 'BTC' || coin === 'ETH' || rowCurrency === 'TWD' || portfolio[coin].category === 'us_stock') ? 2 : 4);
-                let priceDisplay = isAwaitingAPI ? `<span title="等待同步..." style="color:var(--text-muted);">${formatMoney(displayPrice, precision, rowCurrency)} ⏳</span>` : formatMoney(displayPrice, precision, rowCurrency);
+                let priceDisplay = isAwaitingAPI ? `<span title="等待同步..." style="color:var(--text-muted);">${formatPrice(displayPrice, precision, rowCurrency)} ⏳</span>` : formatPrice(displayPrice, precision, rowCurrency);
 
                 let subtextHTML = '';
                 if (globalCurrency === 'NATIVE') {
@@ -4247,7 +4323,7 @@
                     catTotals['cash'].cost += displayStable;
                 }
 
-                let convertedStableStr = `≈ NT$ ${formatMoney(stableCoinUSD * currentExchangeRate, 2, 'TWD').replace('NT$', '')}`;
+                let convertedStableStr = isPrivacyMode ? '≈ NT$ ****' : `≈ NT$ ${formatMoney(stableCoinUSD * currentExchangeRate, 2, 'TWD').replace('NT$', '')}`;
 
                 summaryHTML += `
                 <tr style="background-color: rgba(38, 161, 123, 0.05);">
@@ -4257,7 +4333,7 @@
                     <td>-</td>
                     <td style="font-weight:bold; color:var(--text-heading);">
                         <div style="display:flex; flex-direction:column; align-items:flex-end;">
-                            <input type="number" value="${stableCoinUSD}" onchange="updateStableCoinValue(this.value)" placeholder="輸入數量 (USD)" 
+                            <input type="${isPrivacyMode ? 'password' : 'number'}" ${isPrivacyMode ? 'readonly' : ''} value="${stableCoinUSD}" onchange="updateStableCoinValue(this.value)" placeholder="輸入數量 (USD)" 
                                    style="width: 150px; padding: 4px 8px; border-radius: 4px; border: 1px dashed #26a17b; background: transparent; color: #26a17b; font-weight: bold; text-align: right; outline: none; font-family: 'Courier New', Courier, monospace;">
                             <span style="font-size:11px; color:var(--text-muted); font-weight:normal; margin-top:4px;">${convertedStableStr}</span>
                         </div>
@@ -4284,7 +4360,7 @@
                     catTotals['cash'].cost += displayCashUSD;
                 }
 
-                let convertedUSDStr = `≈ NT$ ${formatMoney(cashUSD * currentExchangeRate, 2, 'TWD').replace('NT$', '')}`;
+                let convertedUSDStr = isPrivacyMode ? '≈ NT$ ****' : `≈ NT$ ${formatMoney(cashUSD * currentExchangeRate, 2, 'TWD').replace('NT$', '')}`;
 
                 summaryHTML += `
                 <tr style="background-color: rgba(46, 160, 67, 0.05);">
@@ -4294,7 +4370,7 @@
                     <td>-</td>
                     <td style="font-weight:bold; color:var(--text-heading);">
                         <div style="display:flex; flex-direction:column; align-items:flex-end;">
-                            <input type="number" value="${cashUSD}" onchange="updateCashUSDValue(this.value)" placeholder="輸入美金現金" 
+                            <input type="${isPrivacyMode ? 'password' : 'number'}" ${isPrivacyMode ? 'readonly' : ''} value="${cashUSD}" onchange="updateCashUSDValue(this.value)" placeholder="輸入美金現金" 
                                    style="width: 150px; padding: 4px 8px; border-radius: 4px; border: 1px dashed #2ea043; background: transparent; color: #2ea043; font-weight: bold; text-align: right; outline: none; font-family: 'Courier New', Courier, monospace;">
                             <span style="font-size:11px; color:var(--text-muted); font-weight:normal; margin-top:4px;">${convertedUSDStr}</span>
                         </div>
@@ -4319,7 +4395,7 @@
                 catTotals['cash'].val += displayCash;
                 catTotals['cash'].cost += displayCash;
 
-                let convertedStr = `≈ $ ${formatMoney(cashTWD/currentExchangeRate, 2, 'USD').replace('$', '')}`;
+                let convertedStr = isPrivacyMode ? '≈ $ ****' : `≈ $ ${formatMoney(cashTWD/currentExchangeRate, 2, 'USD').replace('$', '')}`;
 
                 summaryHTML += `
                 <tr style="background-color: rgba(63, 185, 80, 0.05);">
@@ -4329,7 +4405,7 @@
                     <td>-</td>
                     <td style="font-weight:bold; color:var(--text-heading);">
                         <div style="display:flex; flex-direction:column; align-items:flex-end;">
-                            <input type="number" value="${cashTWD}" onchange="updateCashValue(this.value)" placeholder="輸入台幣現金" 
+                            <input type="${isPrivacyMode ? 'password' : 'number'}" ${isPrivacyMode ? 'readonly' : ''} value="${cashTWD}" onchange="updateCashValue(this.value)" placeholder="輸入台幣現金" 
                                    style="width: 150px; padding: 4px 8px; border-radius: 4px; border: 1px dashed #3fb950; background: transparent; color: #3fb950; font-weight: bold; text-align: right; outline: none; font-family: 'Courier New', Courier, monospace;">
                             <span style="font-size:11px; color:var(--text-muted); font-weight:normal; margin-top:4px;">${convertedStr}</span>
                         </div>
@@ -4889,7 +4965,7 @@
                 if (closestIdx >= 0 && closestIdx < sortedSnaps.length) {
                     t._closestIdx = closestIdx;
 
-                    let str = `${t.type === 'buy' ? '🟢' : '🔴'} ${t.type === 'buy' ? '買入' : '賣出'} ${t.amount} ${t.coin} @ ${t.price}`;
+                    let str = `${t.type === 'buy' ? '🟢' : '🔴'} ${t.type === 'buy' ? '買入' : '賣出'} ${isPrivacyMode ? '****' : t.amount} ${t.coin} @ ${isPrivacyMode ? '****' : t.price}`;
                     if (tradeDetails[closestIdx]) {
                         tradeDetails[closestIdx] += `\n${str}`;
                     } else {
@@ -5095,7 +5171,13 @@
                         y: { 
                             stacked: currentTab === 'all', 
                             grid: { color: currentTheme === 'solarized-light' ? '#d5ccb6' : '#30363d' }, 
-                            ticks: { color: currentTheme === 'solarized-light' ? '#657b83' : '#8b949e' } 
+                            ticks: { 
+                                color: currentTheme === 'solarized-light' ? '#657b83' : '#8b949e',
+                                callback: function(val) {
+                                    if (isPrivacyMode) return '****';
+                                    return val.toLocaleString();
+                                }
+                            } 
                         }
                     }
                 }
@@ -5150,7 +5232,7 @@
                 let tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td style="font-weight: bold; color: var(--text-primary);">${coin} <span class="badge ${cat}-badge">${categoryNames[cat]}</span></td>
-                    <td>${qty.toLocaleString(undefined, {maximumFractionDigits: 6})}</td>
+                    <td>${isPrivacyMode ? '****' : qty.toLocaleString(undefined, {maximumFractionDigits: 6})}</td>
                     <td style="color: var(--text-muted);">${currentPrice.toLocaleString('en-US', {minimumFractionDigits: precision, maximumFractionDigits: precision})}</td>
                     <td style="display: flex; gap: 5px; align-items: center; border-bottom: none;">
                         <input type="text" inputmode="decimal" class="sim-target-price" data-coin="${coin}" data-qty="${qty}" data-cat="${cat}" data-realprice="${safeCurrentPrice}" data-cost="${cost}" value="${displayValue}" oninput="updateSimulatorTotals()" style="width: 120px; padding: 6px; border-radius: 4px; border: 1px solid var(--accent-blue); background: var(--bg-input); color: var(--text-primary); outline: none; font-weight: bold;">
@@ -5209,7 +5291,7 @@
                 let profitTd = rowTr.querySelector('.sim-row-profit');
                 
                 let nativePrefix = isUsdAsset ? '$' : 'NT$';
-                valTd.innerText = `${nativePrefix}${targetValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                valTd.innerText = isPrivacyMode ? `${nativePrefix} ****` : `${nativePrefix}${targetValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
                 
                 let profit = targetValue - costVal;
                 if (Math.abs(profit) < 0.0001) profit = 0;
@@ -5217,7 +5299,8 @@
                 let profitSign = profit >= 0 ? '+' : '';
                 let profitColor = profit >= 0 ? 'var(--badge-profit-text)' : 'var(--badge-loss-text)';
                 let profitPct = costVal > 0 ? (profit / costVal * 100) : 0;
-                profitTd.innerHTML = `<span style="color: ${profitColor};">${profitSign}${nativePrefix}${Math.abs(profit).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} (${profitSign}${profitPct.toFixed(2)}%)</span>`;
+                let profitDisplay = isPrivacyMode ? `${profitSign}${nativePrefix}****` : `${profitSign}${nativePrefix}${Math.abs(profit).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                profitTd.innerHTML = `<span style="color: ${profitColor};">${profitDisplay} (${profitSign}${profitPct.toFixed(2)}%)</span>`;
             });
             
             let diffTotal = simTotal - currentRealTotal;
@@ -5230,12 +5313,15 @@
             let prefix = globalCurrency === 'USD' ? '$' : 'NT$';
             let altSimTotal = globalCurrency === 'NATIVE' ? ` <span style="font-size:11px; margin-left:4px; opacity:0.8;">(≈ $${(simTotal / currentExchangeRate).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})})</span>` : '';
             
-            document.getElementById('sim-total-value').innerHTML = `${prefix}${simTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}${altSimTotal} <span style="color: ${diffColor}; font-size: 0.85em;">(${diffSign}${diffPct.toFixed(2)}%)</span>`;
-            document.getElementById('sim-diff-value').innerHTML = `<span style="color: ${diffColor};">${diffSign}${prefix}${Math.abs(diffTotal).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>`;
+            let simTotalDisplay = isPrivacyMode ? `${prefix} ****` : `${prefix}${simTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            let simDiffDisplay = isPrivacyMode ? `${diffSign}${prefix}****` : `${diffSign}${prefix}${Math.abs(diffTotal).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('sim-total-value').innerHTML = `${simTotalDisplay}${isPrivacyMode ? '' : altSimTotal} <span style="color: ${diffColor}; font-size: 0.85em;">(${diffSign}${diffPct.toFixed(2)}%)</span>`;
+            document.getElementById('sim-diff-value').innerHTML = `<span style="color: ${diffColor};">${simDiffDisplay}</span>`;
         }
 
         window.onload = () => {
             initTheme();
+            updatePrivacyToggleUI(isPrivacyMode);
             initExpenses();
             initAppMode();
             if (!wealthPwd) {
