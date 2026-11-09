@@ -3,7 +3,7 @@ name: code-reviewer-agent
 description: 專門負責專案代碼品質審查、Git 變更比對、安全漏洞檢驗與衝突風險評估的唯讀審查代理人。
 tools:
   write: false
-  subagents: false
+  subagents: true
   mcp: false
 ---
 
