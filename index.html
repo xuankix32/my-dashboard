@@ -99,6 +99,12 @@
             color: #f59e0b !important;
             background: rgba(245, 158, 11, 0.12) !important;
         }
+        body.privacy-mode-active .profit-badge,
+        body.privacy-mode-active .loss-badge {
+            background-color: var(--badge-neutral-bg) !important;
+            color: var(--badge-neutral-text) !important;
+            border-color: var(--badge-neutral-border) !important;
+        }
         .theme-toggle-btn {
             background: var(--bg-card);
             border: 1px solid var(--border-color);
@@ -2551,11 +2557,12 @@
 
             const netEl = document.getElementById('kpi-expense-net');
             if (isPrivacyMode) {
-                netEl.innerText = (netSavings >= 0 ? '+' : '-') + ' NT$ ****';
+                netEl.innerText = 'NT$ ****';
+                netEl.style.color = 'var(--text-primary)';
             } else {
                 netEl.innerText = (netSavings >= 0 ? '+' : '') + 'NT$ ' + Math.round(netSavings).toLocaleString();
+                netEl.style.color = netSavings >= 0 ? 'var(--accent-blue)' : 'var(--badge-loss-text)';
             }
-            netEl.style.color = netSavings >= 0 ? 'var(--accent-blue)' : 'var(--badge-loss-text)';
             
             document.getElementById('kpi-expense-savings').innerText = savingsRate.toFixed(1) + '%';
             document.getElementById('kpi-expense-savings-sub').innerText = netSavings >= 0 ? '儲蓄率正向' : '期間支出大於收入';
@@ -2721,8 +2728,8 @@
                     savingsRateStr = (net / d.income * 100).toFixed(1) + '%';
                 }
 
-                let netColor = net > 0 ? 'var(--badge-profit-text)' : (net < 0 ? 'var(--badge-loss-text)' : 'var(--text-muted)');
-                let netPrefix = net > 0 ? '+' : '';
+                let netColor = isPrivacyMode ? 'var(--text-primary)' : (net > 0 ? 'var(--badge-profit-text)' : (net < 0 ? 'var(--badge-loss-text)' : 'var(--text-muted)'));
+                let netPrefix = isPrivacyMode ? '' : (net > 0 ? '+' : '');
 
                 let actionBtn = d.count > 0 
                     ? `<button class="sort-btn" style="padding: 4px 10px; font-size: 12px; margin: 0 auto;" onclick="goToSpecificExpenseMonth('${d.monthKey}')">📅 查看當月</button>`
@@ -2730,7 +2737,7 @@
 
                 let netDisplay = '-';
                 if (d.count > 0) {
-                    netDisplay = isPrivacyMode ? (net >= 0 ? '+' : '-') + ' NT$ ****' : netPrefix + 'NT$ ' + Math.round(net).toLocaleString();
+                    netDisplay = isPrivacyMode ? 'NT$ ****' : netPrefix + 'NT$ ' + Math.round(net).toLocaleString();
                 }
 
                 rowsHtml += `
@@ -2748,9 +2755,9 @@
 
             let totalNet = totalIncome - totalExpense;
             let totalSavingsRateStr = totalIncome > 0 ? (totalNet / totalIncome * 100).toFixed(1) + '%' : '-';
-            let totalNetColor = totalNet > 0 ? 'var(--badge-profit-text)' : (totalNet < 0 ? 'var(--badge-loss-text)' : 'var(--text-muted)');
-            let totalNetPrefix = totalNet > 0 ? '+' : '';
-            let totalNetDisplay = isPrivacyMode ? (totalNet >= 0 ? '+' : '-') + ' NT$ ****' : totalNetPrefix + 'NT$ ' + Math.round(totalNet).toLocaleString();
+            let totalNetColor = isPrivacyMode ? 'var(--text-primary)' : (totalNet > 0 ? 'var(--badge-profit-text)' : (totalNet < 0 ? 'var(--badge-loss-text)' : 'var(--text-muted)'));
+            let totalNetPrefix = isPrivacyMode ? '' : (totalNet > 0 ? '+' : '');
+            let totalNetDisplay = isPrivacyMode ? 'NT$ ****' : totalNetPrefix + 'NT$ ' + Math.round(totalNet).toLocaleString();
 
             rowsHtml += `
                 <tr style="border-top: 2px solid var(--border-color); background: var(--bg-hover); font-weight: 800;">
@@ -3362,6 +3369,7 @@
             const iconEl = document.getElementById('privacy-toggle-icon');
             const textEl = document.getElementById('privacy-toggle-text');
             const btnEl = document.getElementById('privacy-toggle-btn');
+            document.body.classList.toggle('privacy-mode-active', !!active);
             if (!iconEl || !textEl || !btnEl) return;
             if (active) {
                 iconEl.innerText = '🕶️';
@@ -4133,8 +4141,8 @@
                 let precision = (t.coin === 'NIGHT') ? 5 : ((t.coin === 'BTC' || t.coin === 'ETH' || logCurrency === 'TWD' || t.category === 'us_stock') ? 2 : 4);
                 let pnlBadge = '<span class="badge neutral-badge">-</span>';
                 if (t.type === 'sell' && logRealized !== null) {
-                    let pnlClass = logRealized > 0 ? 'profit-badge' : (logRealized < 0 ? 'loss-badge' : 'neutral-badge');
-                    let pnlSign = logRealized > 0 ? '+' : '';
+                    let pnlClass = isPrivacyMode ? 'neutral-badge' : (logRealized > 0 ? 'profit-badge' : (logRealized < 0 ? 'loss-badge' : 'neutral-badge'));
+                    let pnlSign = isPrivacyMode ? '' : (logRealized > 0 ? '+' : '');
                     pnlBadge = `<span class="badge ${pnlClass}">${pnlSign}${formatMoney(logRealized, 2, logCurrency)}</span>`;
                 }
                 let typeBadge = t.type === 'buy' ? '<span style="color:var(--badge-profit-text); font-weight:bold;">買入</span>' : '<span style="color:var(--badge-loss-text); font-weight:bold;">賣出</span>';
@@ -4286,14 +4294,16 @@
                     catTotals[portfolio[coin].category].cost += contribCost;
                 }
 
-                let pnlClass = displayUnrealized > 0 ? 'profit-badge' : (displayUnrealized < 0 ? 'loss-badge' : 'neutral-badge');
-                let pnlSign = displayUnrealized > 0 ? '+' : '';
+                let pnlClass = isPrivacyMode ? 'neutral-badge' : (displayUnrealized > 0 ? 'profit-badge' : (displayUnrealized < 0 ? 'loss-badge' : 'neutral-badge'));
+                let pnlSign = isPrivacyMode ? '' : (displayUnrealized > 0 ? '+' : '');
                 let unrealizedCell = `<div class="badge ${pnlClass}">
                     ${pnlSign}${formatMoney(displayUnrealized, 2, rowCurrency)}
                     <span class="percent-label">${isPrivacyMode ? '***%' : pnlSign + percentChange.toFixed(2) + '%'}</span>
                 </div>`;
 
-                let realizedBadge = `<span class="badge ${displayRealized > 0 ? 'profit-badge' : (displayRealized < 0 ? 'loss-badge' : 'neutral-badge')}">${displayRealized > 0 ? '+' : ''}${formatMoney(displayRealized, 2, rowCurrency)}</span>`;
+                let realizedClass = isPrivacyMode ? 'neutral-badge' : (displayRealized > 0 ? 'profit-badge' : (displayRealized < 0 ? 'loss-badge' : 'neutral-badge'));
+                let realizedSign = isPrivacyMode ? '' : (displayRealized > 0 ? '+' : '');
+                let realizedBadge = `<span class="badge ${realizedClass}">${realizedSign}${formatMoney(displayRealized, 2, rowCurrency)}</span>`;
                 let displayCatBadgeHTML = currentTab === 'all' ? `<span class="tag-badge" style="font-weight:normal; font-size:10px;">${categoryNames[portfolio[coin].category]}</span>` : '';
                 let precision = (coin === 'NIGHT') ? 5 : ((coin === 'BTC' || coin === 'ETH' || rowCurrency === 'TWD' || portfolio[coin].category === 'us_stock') ? 2 : 4);
                 let priceDisplay = isAwaitingAPI ? `<span title="等待同步..." style="color:var(--text-muted);">${formatPrice(displayPrice, precision, rowCurrency)} ⏳</span>` : formatPrice(displayPrice, precision, rowCurrency);
@@ -4453,11 +4463,13 @@
             }
             
             let athHTML = '';
-            if (athVal > 0 && totalValue < athVal) {
-                let diffPct = ((totalValue - athVal) / athVal) * 100;
-                athHTML = `<span class="badge" style="background: rgba(255,193,7,0.1); color: #ffc107; font-size:12px; margin-left: 10px; padding: 2px 6px;">💧 距新高 ${isPrivacyMode ? '***%' : diffPct.toFixed(2) + '%'}</span>`;
-            } else if (athVal > 0 && totalValue >= athVal && snapshots.length > 0) {
-                athHTML = `<span class="badge" style="background: rgba(63,185,80,0.1); color: #3fb950; font-size:12px; margin-left: 10px; padding: 2px 6px;">🔥 歷史新高！</span>`;
+            if (!isPrivacyMode) {
+                if (athVal > 0 && totalValue < athVal) {
+                    let diffPct = ((totalValue - athVal) / athVal) * 100;
+                    athHTML = `<span class="badge" style="background: rgba(255,193,7,0.1); color: #ffc107; font-size:12px; margin-left: 10px; padding: 2px 6px;">💧 距新高 ${diffPct.toFixed(2)}%</span>`;
+                } else if (athVal > 0 && totalValue >= athVal && snapshots.length > 0) {
+                    athHTML = `<span class="badge" style="background: rgba(63,185,80,0.1); color: #3fb950; font-size:12px; margin-left: 10px; padding: 2px 6px;">🔥 歷史新高！</span>`;
+                }
             }
             
             let totalCurrency = globalCurrency === 'USD' ? 'USD' : 'TWD';
@@ -4471,15 +4483,16 @@
             if (totalOriginalCost > 0) { totalPercentChange = (totalUnrealizedPnl / totalOriginalCost) * 100; }
 
             const elUnrealized = document.getElementById('total-unrealized');
-            let totalPnlSign = totalUnrealizedPnl > 0 ? '+' : '';
+            let totalPnlSign = isPrivacyMode ? '' : (totalUnrealizedPnl > 0 ? '+' : '');
             let altUnrealizedStr = globalCurrency === 'NATIVE' ? ` <span style="font-size:11px; margin-left:4px; opacity:0.8;">(≈ ${totalPnlSign}${formatMoney(totalUnrealizedPnl / currentExchangeRate, 2, 'USD')})</span>` : '';
             elUnrealized.innerHTML = `${totalPnlSign}${formatMoney(totalUnrealizedPnl, 2, totalCurrency)} <span style="font-size:12px; margin-left:5px; opacity:0.8;">(${isPrivacyMode ? '***%' : totalPnlSign + totalPercentChange.toFixed(2) + '%'})</span>${altUnrealizedStr}`;
-            elUnrealized.className = `badge ${totalUnrealizedPnl > 0 ? 'profit-badge' : (totalUnrealizedPnl < 0 ? 'loss-badge' : 'neutral-badge')}`;
+            elUnrealized.className = `badge ${isPrivacyMode ? 'neutral-badge' : (totalUnrealizedPnl > 0 ? 'profit-badge' : (totalUnrealizedPnl < 0 ? 'loss-badge' : 'neutral-badge'))}`;
             
             const elRealized = document.getElementById('total-realized');
-            let altRealizedStr = globalCurrency === 'NATIVE' ? ` <span style="font-size:11px; margin-left:4px; opacity:0.8;">(≈ ${totalRealizedPnl > 0 ? '+' : ''}${formatMoney(totalRealizedPnl / currentExchangeRate, 2, 'USD')})</span>` : '';
-            elRealized.innerHTML = (totalRealizedPnl > 0 ? '+' : '') + formatMoney(totalRealizedPnl, 2, totalCurrency) + altRealizedStr;
-            elRealized.className = `badge ${totalRealizedPnl > 0 ? 'profit-badge' : (totalRealizedPnl < 0 ? 'loss-badge' : 'neutral-badge')}`;
+            let totalRealizedSign = isPrivacyMode ? '' : (totalRealizedPnl > 0 ? '+' : '');
+            let altRealizedStr = globalCurrency === 'NATIVE' ? ` <span style="font-size:11px; margin-left:4px; opacity:0.8;">(≈ ${totalRealizedSign}${formatMoney(totalRealizedPnl / currentExchangeRate, 2, 'USD')})</span>` : '';
+            elRealized.innerHTML = totalRealizedSign + formatMoney(totalRealizedPnl, 2, totalCurrency) + altRealizedStr;
+            elRealized.className = `badge ${isPrivacyMode ? 'neutral-badge' : (totalRealizedPnl > 0 ? 'profit-badge' : (totalRealizedPnl < 0 ? 'loss-badge' : 'neutral-badge'))}`;
             
             const pieModeBtn = document.getElementById('pie-mode-btn');
             if (pieModeBtn) {
@@ -4798,9 +4811,9 @@
                         modeText = '總資產規模';
                     }
                     
-                    let sign = displayVal >= 0 ? '+' : '';
-                    let bgColor = displayVal >= 0 ? 'rgba(63, 185, 80, 0.15)' : 'rgba(255, 123, 114, 0.15)';
-                    let color = displayVal >= 0 ? '#3fb950' : '#ff7b72';
+                    let sign = isPrivacyMode ? '' : (displayVal >= 0 ? '+' : '');
+                    let bgColor = isPrivacyMode ? 'var(--bg-btn)' : (displayVal >= 0 ? 'rgba(63, 185, 80, 0.15)' : 'rgba(255, 123, 114, 0.15)');
+                    let color = isPrivacyMode ? 'var(--text-muted)' : (displayVal >= 0 ? '#3fb950' : '#ff7b72');
                     
                     badgeEl.innerHTML = `${modeText}: ${sign}${formatMoney(displayVal, 0, chartCurrency)} (${isPrivacyMode ? '***%' : sign + displayPct.toFixed(2) + '%'})`;
                     badgeEl.style.backgroundColor = bgColor;
@@ -5323,10 +5336,10 @@
                 let profit = targetValue - costVal;
                 if (Math.abs(profit) < 0.0001) profit = 0;
                 
-                let profitSign = profit >= 0 ? '+' : '';
-                let profitColor = profit >= 0 ? 'var(--badge-profit-text)' : 'var(--badge-loss-text)';
+                let profitSign = isPrivacyMode ? '' : (profit >= 0 ? '+' : '');
+                let profitColor = isPrivacyMode ? 'var(--text-muted)' : (profit >= 0 ? 'var(--badge-profit-text)' : 'var(--badge-loss-text)');
                 let profitPct = costVal > 0 ? (profit / costVal * 100) : 0;
-                let profitDisplay = isPrivacyMode ? `${profitSign}${nativePrefix}****` : `${profitSign}${nativePrefix}${Math.abs(profit).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                let profitDisplay = isPrivacyMode ? `${nativePrefix}****` : `${profitSign}${nativePrefix}${Math.abs(profit).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
                 profitTd.innerHTML = `<span style="color: ${profitColor};">${profitDisplay} (${isPrivacyMode ? '***%' : profitSign + profitPct.toFixed(2) + '%'})</span>`;
             });
             
@@ -5335,8 +5348,8 @@
             
             let diffPct = currentRealTotal > 0 ? (diffTotal / currentRealTotal * 100) : 0;
             
-            let diffSign = diffTotal >= 0 ? '+' : '';
-            let diffColor = diffTotal >= 0 ? 'var(--badge-profit-text)' : 'var(--badge-loss-text)';
+            let diffSign = isPrivacyMode ? '' : (diffTotal >= 0 ? '+' : '');
+            let diffColor = isPrivacyMode ? 'var(--text-muted)' : (diffTotal >= 0 ? 'var(--badge-profit-text)' : 'var(--badge-loss-text)');
             let prefix = globalCurrency === 'USD' ? '$' : 'NT$';
             let altSimTotal = globalCurrency === 'NATIVE' ? ` <span style="font-size:11px; margin-left:4px; opacity:0.8;">(≈ $${(simTotal / currentExchangeRate).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})})</span>` : '';
             
