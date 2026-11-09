@@ -3444,6 +3444,12 @@
             'crypto': [{ value: 'BTC', text: 'BTC (比特幣)' }, { value: 'ETH', text: 'ETH (以太幣)' }, { value: 'ADA', text: 'ADA (Cardano)' }]
         };
 
+        function getAnonymousLabel(index) {
+            const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            if (index < 26) return `標的 ${letters[index]}`;
+            return `標的 ${letters[index % 26]}${Math.floor(index / 26) + 1}`;
+        }
+
         const formatPrice = (num, decimals = 2, currency = 'USD') => {
             const symbol = currency === 'TWD' ? 'NT$' : '$';
             return symbol + num.toLocaleString('en-US', {minimumFractionDigits: decimals, maximumFractionDigits: decimals});
@@ -4271,7 +4277,7 @@
                 let pnlSign = displayUnrealized > 0 ? '+' : '';
                 let unrealizedCell = `<div class="badge ${pnlClass}">
                     ${pnlSign}${formatMoney(displayUnrealized, 2, rowCurrency)}
-                    <span class="percent-label">${pnlSign}${percentChange.toFixed(2)}%</span>
+                    <span class="percent-label">${isPrivacyMode ? '***%' : pnlSign + percentChange.toFixed(2) + '%'}</span>
                 </div>`;
 
                 let realizedBadge = `<span class="badge ${displayRealized > 0 ? 'profit-badge' : (displayRealized < 0 ? 'loss-badge' : 'neutral-badge')}">${displayRealized > 0 ? '+' : ''}${formatMoney(displayRealized, 2, rowCurrency)}</span>`;
@@ -4435,7 +4441,7 @@
             let athHTML = '';
             if (athVal > 0 && totalValue < athVal) {
                 let diffPct = ((totalValue - athVal) / athVal) * 100;
-                athHTML = `<span class="badge" style="background: rgba(255,193,7,0.1); color: #ffc107; font-size:12px; margin-left: 10px; padding: 2px 6px;">💧 距新高 ${diffPct.toFixed(2)}%</span>`;
+                athHTML = `<span class="badge" style="background: rgba(255,193,7,0.1); color: #ffc107; font-size:12px; margin-left: 10px; padding: 2px 6px;">💧 距新高 ${isPrivacyMode ? '***%' : diffPct.toFixed(2) + '%'}</span>`;
             } else if (athVal > 0 && totalValue >= athVal && snapshots.length > 0) {
                 athHTML = `<span class="badge" style="background: rgba(63,185,80,0.1); color: #3fb950; font-size:12px; margin-left: 10px; padding: 2px 6px;">🔥 歷史新高！</span>`;
             }
@@ -4453,7 +4459,7 @@
             const elUnrealized = document.getElementById('total-unrealized');
             let totalPnlSign = totalUnrealizedPnl > 0 ? '+' : '';
             let altUnrealizedStr = globalCurrency === 'NATIVE' ? ` <span style="font-size:11px; margin-left:4px; opacity:0.8;">(≈ ${totalPnlSign}${formatMoney(totalUnrealizedPnl / currentExchangeRate, 2, 'USD')})</span>` : '';
-            elUnrealized.innerHTML = `${totalPnlSign}${formatMoney(totalUnrealizedPnl, 2, totalCurrency)} <span style="font-size:12px; margin-left:5px; opacity:0.8;">(${totalPnlSign}${totalPercentChange.toFixed(2)}%)</span>${altUnrealizedStr}`;
+            elUnrealized.innerHTML = `${totalPnlSign}${formatMoney(totalUnrealizedPnl, 2, totalCurrency)} <span style="font-size:12px; margin-left:5px; opacity:0.8;">(${isPrivacyMode ? '***%' : totalPnlSign + totalPercentChange.toFixed(2) + '%'})</span>${altUnrealizedStr}`;
             elUnrealized.className = `badge ${totalUnrealizedPnl > 0 ? 'profit-badge' : (totalUnrealizedPnl < 0 ? 'loss-badge' : 'neutral-badge')}`;
             
             const elRealized = document.getElementById('total-realized');
@@ -4503,14 +4509,17 @@
 
             let labelsWithPercentageVal = filteredValLabels.map((coin, index) => {
                 let percentage = filteredTotalVal > 0 ? ((filteredValData[index] / filteredTotalVal) * 100).toFixed(1) : 0; 
-                return `${coin} (${percentage}%)`;
+                let displayName = isPrivacyMode && coin !== '無資料' ? getAnonymousLabel(index) : coin;
+                return `${displayName} (${percentage}%)`;
             });
             let valLegendHTML = '';
             labelsWithPercentageVal.forEach((label, i) => {
+                let coinName = isPrivacyMode && filteredValLabels[i] !== '無資料' ? getAnonymousLabel(i) : filteredValLabels[i];
+                let percentage = filteredTotalVal > 0 ? ((filteredValData[i] / filteredTotalVal) * 100).toFixed(1) : 0;
                 valLegendHTML += `<div style="display: flex; align-items: center; gap: 4px;">
                     <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: ${filteredValColors[i]}; flex-shrink: 0;"></span>
-                    <span style="font-size: 11px; white-space: nowrap;">${label.split(' ')[0]}</span>
-                    <span style="font-weight: bold; font-size: 11px;">${label.split(' ')[1] || ''}</span>
+                    <span style="font-size: 11px; white-space: nowrap;">${coinName}</span>
+                    <span style="font-weight: bold; font-size: 11px;">(${percentage}%)</span>
                 </div>`;
             });
             document.getElementById('portfolio-legend').innerHTML = valLegendHTML;
@@ -4572,14 +4581,17 @@
 
             let labelsWithPercentageCost = filteredCostLabels.map((coin, index) => {
                 let percentage = filteredTotalCost > 0 ? ((filteredCostData[index] / filteredTotalCost) * 100).toFixed(1) : 0; 
-                return `${coin} (${percentage}%)`;
+                let displayName = isPrivacyMode && coin !== '無資料' ? getAnonymousLabel(index) : coin;
+                return `${displayName} (${percentage}%)`;
             });
             let costLegendHTML = '';
             labelsWithPercentageCost.forEach((label, i) => {
+                let coinName = isPrivacyMode && filteredCostLabels[i] !== '無資料' ? getAnonymousLabel(i) : filteredCostLabels[i];
+                let percentage = filteredTotalCost > 0 ? ((filteredCostData[i] / filteredTotalCost) * 100).toFixed(1) : 0;
                 costLegendHTML += `<div style="display: flex; align-items: center; gap: 4px;">
                     <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: ${filteredCostColors[i]}; flex-shrink: 0;"></span>
-                    <span style="font-size: 11px; white-space: nowrap;">${label.split(' ')[0]}</span>
-                    <span style="font-weight: bold; font-size: 11px;">${label.split(' ')[1] || ''}</span>
+                    <span style="font-size: 11px; white-space: nowrap;">${coinName}</span>
+                    <span style="font-weight: bold; font-size: 11px;">(${percentage}%)</span>
                 </div>`;
             });
             document.getElementById('cost-legend').innerHTML = costLegendHTML;
@@ -4776,7 +4788,7 @@
                     let bgColor = displayVal >= 0 ? 'rgba(63, 185, 80, 0.15)' : 'rgba(255, 123, 114, 0.15)';
                     let color = displayVal >= 0 ? '#3fb950' : '#ff7b72';
                     
-                    badgeEl.innerHTML = `${modeText}: ${sign}${formatMoney(displayVal, 0, chartCurrency)} (${sign}${displayPct.toFixed(2)}%)`;
+                    badgeEl.innerHTML = `${modeText}: ${sign}${formatMoney(displayVal, 0, chartCurrency)} (${isPrivacyMode ? '***%' : sign + displayPct.toFixed(2) + '%'})`;
                     badgeEl.style.backgroundColor = bgColor;
                     badgeEl.style.color = color;
                     badgeEl.style.display = 'inline-block';
@@ -5114,7 +5126,7 @@
                                             let diffSign = diff >= 0 ? '+' : '';
                                             let diffIcon = diff >= 0 ? '📈' : '📉';
                                             let pct = (diff / prevTotal) * 100;
-                                            footerStr += `\n${diffIcon} 較前次: ${diffSign}${formatMoney(diff, 2, chartCurrency)} (${diffSign}${pct.toFixed(2)}%)`;
+                                            footerStr += `\n${diffIcon} 較前次: ${diffSign}${formatMoney(diff, 2, chartCurrency)} (${isPrivacyMode ? '***%' : diffSign + pct.toFixed(2) + '%'})`;
                                         }
                                     }
                                     
@@ -5138,7 +5150,7 @@
                                         let allTimeRoi = snap[costKey] > 0 ? (allTimeProfit / snap[costKey]) * 100 : 0;
                                         let roiSign = allTimeProfit >= 0 ? '+' : '';
                                         
-                                        footerStr += `\n------------------\n🏆 歷史總獲利: ${roiSign}${formatMoney(allTimeProfit, 2, chartCurrency)} (${roiSign}${allTimeRoi.toFixed(2)}%)`;
+                                        footerStr += `\n------------------\n🏆 歷史總獲利: ${roiSign}${formatMoney(allTimeProfit, 2, chartCurrency)} (${isPrivacyMode ? '***%' : roiSign + allTimeRoi.toFixed(2) + '%'})`;
                                     }
                                     
                                     let hoverIdx = items[0].dataIndex;
@@ -5300,7 +5312,7 @@
                 let profitColor = profit >= 0 ? 'var(--badge-profit-text)' : 'var(--badge-loss-text)';
                 let profitPct = costVal > 0 ? (profit / costVal * 100) : 0;
                 let profitDisplay = isPrivacyMode ? `${profitSign}${nativePrefix}****` : `${profitSign}${nativePrefix}${Math.abs(profit).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-                profitTd.innerHTML = `<span style="color: ${profitColor};">${profitDisplay} (${profitSign}${profitPct.toFixed(2)}%)</span>`;
+                profitTd.innerHTML = `<span style="color: ${profitColor};">${profitDisplay} (${isPrivacyMode ? '***%' : profitSign + profitPct.toFixed(2) + '%'})</span>`;
             });
             
             let diffTotal = simTotal - currentRealTotal;
@@ -5315,7 +5327,7 @@
             
             let simTotalDisplay = isPrivacyMode ? `${prefix} ****` : `${prefix}${simTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
             let simDiffDisplay = isPrivacyMode ? `${diffSign}${prefix}****` : `${diffSign}${prefix}${Math.abs(diffTotal).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-            document.getElementById('sim-total-value').innerHTML = `${simTotalDisplay}${isPrivacyMode ? '' : altSimTotal} <span style="color: ${diffColor}; font-size: 0.85em;">(${diffSign}${diffPct.toFixed(2)}%)</span>`;
+            document.getElementById('sim-total-value').innerHTML = `${simTotalDisplay}${isPrivacyMode ? '' : altSimTotal} <span style="color: ${diffColor}; font-size: 0.85em;">(${isPrivacyMode ? '***%' : diffSign + diffPct.toFixed(2) + '%'})</span>`;
             document.getElementById('sim-diff-value').innerHTML = `<span style="color: ${diffColor};">${simDiffDisplay}</span>`;
         }
 
