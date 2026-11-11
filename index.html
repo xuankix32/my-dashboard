@@ -90,10 +90,11 @@
         .grid { display: grid; grid-template-columns: 3fr 1fr; gap: 20px; align-items: start; }
         .card { background-color: var(--bg-card); padding: 25px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--card-shadow); transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease; }
         
-        .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .header-placeholder { width: 220px; }
-        .header-title { margin: 0; text-align: center; font-weight: 800; letter-spacing: 1px; color: var(--text-heading); }
-        .header-actions { width: 220px; display: flex; justify-content: flex-end; gap: 8px; }
+        .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 12px; }
+        .header-placeholder { flex: 1; min-width: 0; }
+        .header-title { margin: 0; text-align: center; font-weight: 800; letter-spacing: 1px; color: var(--text-heading); white-space: nowrap; }
+        .header-actions { flex: 1; min-width: 0; display: flex; justify-content: flex-end; align-items: center; gap: 6px; flex-wrap: wrap; }
+        body.test-mode-active .header-actions .theme-toggle-btn { padding: 6px 10px; font-size: 12px; gap: 4px; white-space: nowrap; }
         .privacy-active {
             border-color: #f59e0b !important;
             color: #f59e0b !important;
@@ -125,7 +126,7 @@
             color: var(--accent-blue);
             transform: translateY(-1px);
         }
-        @media (max-width: 650px) {
+        @media (max-width: 1120px) {
             .dashboard-header { flex-direction: column; gap: 12px; }
             .header-placeholder { display: none; }
             .header-actions { width: 100%; justify-content: center; }
@@ -234,11 +235,49 @@
             opacity: 0.7;
             cursor: not-allowed;
         }
+        .login-box button.login-secondary-btn {
+            margin-top: 10px;
+            background-color: var(--bg-btn);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+        .login-box button.login-secondary-btn:hover:not(:disabled) {
+            background-color: var(--bg-btn-hover);
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
         #login-error {
             color: var(--badge-loss-text);
             font-size: 13px;
             margin-top: 10px;
             display: none;
+        }
+        .test-mode-banner {
+            display: none;
+            box-sizing: border-box;
+            width: 100%;
+            margin: -6px auto 18px auto;
+            max-width: 960px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            background: var(--accent-blue-bg);
+            border: 1px solid var(--accent-blue);
+            color: var(--accent-blue);
+            font-size: 13px;
+            line-height: 1.5;
+            font-weight: 600;
+            text-align: center;
+        }
+        body.app-authenticated.test-mode-active #test-mode-banner {
+            display: block;
+        }
+        .test-mode-return-btn {
+            border-color: var(--badge-loss-text) !important;
+            color: var(--badge-loss-text) !important;
+        }
+        .test-price-editable {
+            cursor: pointer;
+            border-bottom: 1px dashed var(--accent-blue);
         }
         body:not(.app-authenticated) .dashboard-header,
         body:not(.app-authenticated) .app-mode-switch-wrapper,
@@ -1115,6 +1154,7 @@
             <h2>🔒 Dashboard Login</h2>
             <input type="password" id="pwd-input" placeholder="請輸入密碼" onkeydown="if(event.key === 'Enter') { event.preventDefault(); attemptLogin(); }">
             <button id="login-submit-btn" onclick="attemptLogin()">解鎖 (Unlock)</button>
+            <button type="button" id="login-test-mode-btn" class="login-secondary-btn" onclick="enterTestMode()">🧪 進入測試模式 (空白沙盒)</button>
             <div id="login-error">密碼錯誤，請重新輸入。</div>
         </div>
     </div>
@@ -1123,6 +1163,9 @@
         <div class="header-placeholder"></div>
         <h1 class="header-title">🚀 戰情室 Dashboard</h1>
         <div class="header-actions">
+            <button id="test-mode-entry-btn" class="theme-toggle-btn" onclick="enterTestMode()" title="切換至空白測試沙盒 (切回需重輸密碼)">🧪 測試模式</button>
+            <button id="clear-test-btn" class="theme-toggle-btn" onclick="clearTestModeData()" style="display: none;" title="清空所有測試資料與自訂標的">🗑️ 清空測試</button>
+            <button id="exit-test-btn" class="theme-toggle-btn test-mode-return-btn" onclick="exitTestMode()" style="display: none;" title="返回正式模式 (需重新輸入密碼)">🔒 返回正式模式</button>
             <button id="privacy-toggle-btn" class="theme-toggle-btn" onclick="togglePrivacyMode()" title="切換隱私展示模式 (遮罩敏感金額)">
                 <span id="privacy-toggle-icon">👁️</span>
                 <span id="privacy-toggle-text">隱私展示</span>
@@ -1132,6 +1175,10 @@
                 <span id="theme-toggle-text">Solarized</span>
             </button>
         </div>
+    </div>
+
+    <div id="test-mode-banner" class="test-mode-banner">
+        🧪 目前處於【測試模式】— 無任何正式資料與預設標的，所有變更僅暫存於本機測試區且不會同步至雲端；切換回正式模式須重新輸入密碼
     </div>
 
 <div class="app-mode-switch-wrapper">
@@ -1174,9 +1221,9 @@
             <button id="save-btn" class="action-btn" onclick="saveTrade()">新增</button>
         </div>
 
-        <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
             <span style="font-size: 13px; color: var(--text-muted);">請直接輸入代號：</span>
-            <input type="text" id="new-ticker-input" placeholder="輸入代號 (例: AAPL, 00919)" autocomplete="off" style="width: 240px; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); outline: none;">
+            <input type="text" id="new-ticker-input" placeholder="輸入代號 (例: AAPL, 00919)" autocomplete="off" style="width: 240px; max-width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); outline: none;">
             <button onclick="addNewTicker()" type="button" class="sort-btn" style="padding: 10px 18px; background: var(--accent-blue-bg); border: 1px solid var(--accent-blue); color: var(--accent-blue); font-weight: bold;">➕ 加入選單</button>
         </div>
     </div>
@@ -1705,6 +1752,13 @@
             { name: '回饋', emoji: '🎁', color: '#2ea043', isIncome: true }
         ];
 
+        let isTestMode = false;
+        let authSessionEpoch = 0;
+
+        function getScopedStorageKey(baseKey) {
+            return isTestMode ? ('wealthTest_' + baseKey) : baseKey;
+        }
+
         let isPrivacyMode = localStorage.getItem('wealthPrivacyMode') === 'true';
 
         function formatExpenseMoney(amt, prefix = '') {
@@ -1738,7 +1792,7 @@
 
         function switchAppMode(mode) {
             currentAppMode = mode;
-            localStorage.setItem('wealthAppMode', mode);
+            localStorage.setItem(getScopedStorageKey('wealthAppMode'), mode);
             
             const btnInvest = document.getElementById('mode-invest-btn');
             const btnExpense = document.getElementById('mode-expense-btn');
@@ -1761,7 +1815,7 @@
 
         function syncExpenseDateBounds() {
             if (expenses.length > 0) {
-                let latestDate = expenses.reduce((max, e) => e.date > max ? e.date : max, '2026-10-01');
+                let latestDate = expenses.reduce((max, e) => e.date > max ? e.date : max, expenses[0].date || '2026-10-01');
                 selectedExpenseDate = latestDate;
                 currentExpenseMonth = latestDate.substring(0, 7);
                 currentExpenseYear = latestDate.substring(0, 4);
@@ -1786,18 +1840,22 @@
         }
 
         function initExpenses(skipRender = false) {
-            let saved = localStorage.getItem('wealthExpenses');
+            let saved = localStorage.getItem(getScopedStorageKey('wealthExpenses'));
             if (!saved) {
-                expenses = initialExpenseTuples.map(t => ({
-                    id: t[0],
-                    date: t[1],
-                    type: t[2],
-                    category: t[3],
-                    amount: t[4],
-                    account: t[5],
-                    note: t[6]
-                }));
-                localStorage.setItem('wealthExpenses', JSON.stringify(expenses));
+                if (isTestMode) {
+                    expenses = [];
+                } else {
+                    expenses = initialExpenseTuples.map(t => ({
+                        id: t[0],
+                        date: t[1],
+                        type: t[2],
+                        category: t[3],
+                        amount: t[4],
+                        account: t[5],
+                        note: t[6]
+                    }));
+                    localStorage.setItem(getScopedStorageKey('wealthExpenses'), JSON.stringify(expenses));
+                }
             } else {
                 try {
                     expenses = JSON.parse(saved) || [];
@@ -1814,7 +1872,7 @@
 
         function setExpensePeriodType(type, isInit = false, skipRender = false) {
             expensePeriodType = type;
-            localStorage.setItem('wealthExpensePeriod', type);
+            localStorage.setItem(getScopedStorageKey('wealthExpensePeriod'), type);
 
             ['month', 'year', 'custom', 'all'].forEach(p => {
                 const btn = document.getElementById('period-btn-' + p);
@@ -1829,7 +1887,7 @@
                 switchExpenseViewMode('list', false);
             } else {
                 if (viewToggle) viewToggle.style.display = 'inline-flex';
-                if (!isInit) switchExpenseViewMode(expenseViewMode, false);
+                switchExpenseViewMode(expenseViewMode, false);
             }
 
             if (!skipRender) {
@@ -1905,7 +1963,7 @@
         let dragSourceEl = null;
 
         function getCustomCategoryOrder(type) {
-            const key = 'wealthCategoryOrder_' + type;
+            const key = getScopedStorageKey('wealthCategoryOrder_' + type);
             try {
                 const stored = localStorage.getItem(key);
                 return stored ? JSON.parse(stored) : null;
@@ -1915,7 +1973,7 @@
         }
 
         function saveCustomCategoryOrder(type, orderArray) {
-            const key = 'wealthCategoryOrder_' + type;
+            const key = getScopedStorageKey('wealthCategoryOrder_' + type);
             try {
                 localStorage.setItem(key, JSON.stringify(orderArray));
             } catch(e) {}
@@ -2168,7 +2226,11 @@
         }
 
         async function saveExpenseToCloud(payload = null, action = 'batch', isSilent = false) {
-            localStorage.setItem('wealthExpenses', JSON.stringify(expenses));
+            localStorage.setItem(getScopedStorageKey('wealthExpenses'), JSON.stringify(expenses));
+            if (isTestMode) {
+                if (!isSilent && typeof setStatus === 'function') setStatus('🧪 測試記帳已儲存於本機測試區（未寫入雲端）', 'sandbox');
+                return;
+            }
             localStorage.setItem('wealthExpenseDirty', 'true');
             
             const pwd = (typeof wealthPwd !== 'undefined' && wealthPwd) ? wealthPwd : (localStorage.getItem('wealthPwd') || '');
@@ -2247,7 +2309,7 @@
                 expenses.unshift(newlyCreatedRecord);
             }
 
-            localStorage.setItem('wealthExpenses', JSON.stringify(expenses));
+            localStorage.setItem(getScopedStorageKey('wealthExpenses'), JSON.stringify(expenses));
             saveExpenseToCloud(isEditMode ? null : newlyCreatedRecord, isEditMode ? 'batch' : 'add');
             
             amtInput.value = '';
@@ -2296,7 +2358,7 @@
             if (!confirm('確定要刪除這筆記帳紀錄嗎？')) return;
             let delId = id;
             expenses = expenses.filter(e => e.id !== id);
-            localStorage.setItem('wealthExpenses', JSON.stringify(expenses));
+            localStorage.setItem(getScopedStorageKey('wealthExpenses'), JSON.stringify(expenses));
             saveExpenseToCloud({ id: delId }, 'delete');
             renderExpenseUI();
         }
@@ -2379,7 +2441,7 @@
 
         function switchExpenseViewMode(mode, doRender = true) {
             expenseViewMode = mode;
-            localStorage.setItem('wealthExpenseViewMode', mode);
+            localStorage.setItem(getScopedStorageKey('wealthExpenseViewMode'), mode);
             
             const btnCal = document.getElementById('btn-view-calendar');
             const btnList = document.getElementById('btn-view-list');
@@ -3319,9 +3381,9 @@
                 if (newItems.length > 0) {
                     expenses = [...newItems, ...expenses];
                     expenses.sort((a, b) => b.date.localeCompare(a.date));
-                    localStorage.setItem('wealthExpenses', JSON.stringify(expenses));
+                    localStorage.setItem(getScopedStorageKey('wealthExpenses'), JSON.stringify(expenses));
                     saveExpenseToCloud(null, 'batch');
-                    alert(`🎉 成功匯入 ${newItems.length} 筆記帳紀錄，並同步至 Google 試算表！`);
+                    alert(isTestMode ? `🎉 成功匯入 ${newItems.length} 筆測試記帳紀錄！（僅存於本機測試區）` : `🎉 成功匯入 ${newItems.length} 筆記帳紀錄，並同步至 Google 試算表！`);
                     renderExpenseUI();
                 } else {
                     alert('資料均已存在，未新增重複紀錄。');
@@ -3436,15 +3498,140 @@
         }
         initTheme();
 
+        function reloadScopedPreferences() {
+            tabHideZero = JSON.parse(localStorage.getItem(getScopedStorageKey('wealthHideZeroTabs'))) || { 'tw_stock': false, 'us_stock': false, 'crypto': false, 'all': false };
+            tabCurrencies = JSON.parse(localStorage.getItem(getScopedStorageKey('wealthCurrencies'))) || { 'tw_stock': 'TWD', 'us_stock': 'USD', 'crypto': 'USD', 'all': 'USD' };
+            historyCurrency = localStorage.getItem(getScopedStorageKey('wealthHistoryCurrency')) || 'TWD';
+            pieChartMode = localStorage.getItem(getScopedStorageKey('wealthPieMode')) || 'detail';
+            showCashInValueChart = localStorage.getItem(getScopedStorageKey('wealthShowCashInVal')) ? JSON.parse(localStorage.getItem(getScopedStorageKey('wealthShowCashInVal'))) : true;
+            showCashInCostChart = localStorage.getItem(getScopedStorageKey('wealthShowCashInCost')) ? JSON.parse(localStorage.getItem(getScopedStorageKey('wealthShowCashInCost'))) : true;
+            trendRoiMode = localStorage.getItem(getScopedStorageKey('wealthTrendRoiMode')) || 'unrealized';
+            currentAppMode = localStorage.getItem(getScopedStorageKey('wealthAppMode')) || 'investment';
+            currentTab = localStorage.getItem(getScopedStorageKey('wealthLastTab')) || 'crypto';
+            expensePeriodType = localStorage.getItem(getScopedStorageKey('wealthExpensePeriod')) || 'month';
+            expenseViewMode = localStorage.getItem(getScopedStorageKey('wealthExpenseViewMode')) || 'calendar';
+        }
+
+        function updateTestModeUI() {
+            document.body.classList.toggle('test-mode-active', isTestMode);
+            const entryBtn = document.getElementById('test-mode-entry-btn');
+            const clearBtn = document.getElementById('clear-test-btn');
+            const exitBtn = document.getElementById('exit-test-btn');
+            if (entryBtn) entryBtn.style.display = isTestMode ? 'none' : 'inline-flex';
+            if (clearBtn) clearBtn.style.display = isTestMode ? 'inline-flex' : 'none';
+            if (exitBtn) exitBtn.style.display = isTestMode ? 'inline-flex' : 'none';
+        }
+
+        function resetFilterUIForModeSwitch() {
+            expenseSearchQuery = '';
+            expenseAccountFilter = 'all';
+            expenseCategoryFilter = 'all';
+            const accFilter = document.getElementById('expense-account-filter');
+            const catFilter = document.getElementById('expense-category-filter');
+            const searchInput = document.getElementById('expense-search-input');
+            const newTickerInput = document.getElementById('new-ticker-input');
+            const tradeAmtInput = document.getElementById('trade-amount');
+            const tradePriceInput = document.getElementById('trade-price');
+            if (accFilter) accFilter.value = 'all';
+            if (catFilter) catFilter.value = 'all';
+            if (searchInput) searchInput.value = '';
+            if (newTickerInput) newTickerInput.value = '';
+            if (tradeAmtInput) tradeAmtInput.value = '';
+            if (tradePriceInput) tradePriceInput.value = '';
+            if (typeof cancelEditExpense === 'function') cancelEditExpense();
+        }
+
+        function enterTestMode() {
+            if (isVerifyingAuth) return;
+            authSessionEpoch++;
+            isAuthenticated = false;
+            hasInitializedApp = false;
+            wealthPwd = '';
+            localStorage.removeItem('wealthPwd');
+
+            isTestMode = true;
+            sessionStorage.setItem('wealthTestModeSession', 'true');
+            reloadScopedPreferences();
+            resetFilterUIForModeSwitch();
+
+            editingId = null;
+            editingExpenseId = null;
+            coinAnonMap = {};
+            snapshots = [];
+            trades = JSON.parse(localStorage.getItem(getScopedStorageKey('wealthTrades'))) || [];
+            cashTWD = parseFloat(localStorage.getItem(getScopedStorageKey('wealthCashTWD'))) || 0;
+            stableCoinUSD = parseFloat(localStorage.getItem(getScopedStorageKey('wealthStableCoinUSD'))) || 0;
+            cashUSD = parseFloat(localStorage.getItem(getScopedStorageKey('wealthCashUSD'))) || 0;
+            try {
+                priceCache = JSON.parse(localStorage.getItem(getScopedStorageKey('wealthPriceCache'))) || {};
+            } catch(e) {
+                priceCache = {};
+            }
+
+            document.body.classList.add('app-authenticated');
+            updateTestModeUI();
+            const overlay = document.getElementById('login-overlay');
+            if (overlay) overlay.style.display = 'none';
+            const pwdInput = document.getElementById('pwd-input');
+            if (pwdInput) pwdInput.value = '';
+
+            initExpenses(true);
+            initAppMode();
+            hasInitializedApp = true;
+            executeTabSwitch(currentTab, false);
+            setStatus('🧪 測試模式 (本機沙盒，不影響雲端)', 'sandbox');
+        }
+
+        function clearTestModeData() {
+            if (!isTestMode) return;
+            if (!confirm('確定要清空所有測試模式的交易、記帳、自訂標的與現金設定嗎？\n（此動作不會影響正式版雲端與本機資料）')) return;
+
+            Object.keys(localStorage).forEach(k => {
+                if (k.startsWith('wealthTest_')) {
+                    localStorage.removeItem(k);
+                }
+            });
+
+            editingId = null;
+            editingExpenseId = null;
+            coinAnonMap = {};
+            trades = [];
+            expenses = [];
+            snapshots = [];
+            priceCache = {};
+            cashTWD = 0;
+            stableCoinUSD = 0;
+            cashUSD = 0;
+
+            reloadScopedPreferences();
+            resetFilterUIForModeSwitch();
+            initExpenses(true);
+            initAppMode();
+            executeTabSwitch(currentTab, false);
+            setStatus('🗑️ 已清空所有測試資料，回到完全空白狀態', 'sandbox');
+        }
+
+        function exitTestMode() {
+            authSessionEpoch++;
+            sessionStorage.removeItem('wealthTestModeSession');
+            isTestMode = false;
+            reloadScopedPreferences();
+            resetFilterUIForModeSwitch();
+            updateTestModeUI();
+            showLogin(false, '請輸入密碼以切換回正式模式。', true);
+        }
+
         function setLoginLoading(isLoading) {
             isVerifyingAuth = isLoading;
             const pwdInput = document.getElementById('pwd-input');
             const submitBtn = document.getElementById('login-submit-btn');
+            const testBtn = document.getElementById('login-test-mode-btn');
             if (pwdInput) pwdInput.disabled = isLoading;
             if (submitBtn) {
                 submitBtn.disabled = isLoading;
                 submitBtn.innerText = isLoading ? '⏳ 驗證中...' : '解鎖 (Unlock)';
             }
+            if (testBtn) testBtn.disabled = isLoading;
         }
 
         async function attemptLogin() {
@@ -3462,6 +3649,11 @@
                 return;
             }
 
+            isTestMode = false;
+            sessionStorage.removeItem('wealthTestModeSession');
+            updateTestModeUI();
+            reloadScopedPreferences();
+
             wealthPwd = input;
             if (errEl) errEl.style.display = 'none';
             setLoginLoading(true);
@@ -3474,14 +3666,19 @@
         }
 
         function showLogin(showError = false, errorMsg = '密碼錯誤，請重新輸入。', clearInput = true) {
+            authSessionEpoch++;
             isAuthenticated = false;
+            isTestMode = false;
             hasInitializedApp = false;
+            sessionStorage.removeItem('wealthTestModeSession');
             setLoginLoading(false);
+            updateTestModeUI();
             wealthPwd = '';
             localStorage.removeItem('wealthPwd');
             trades = [];
             expenses = [];
             snapshots = [];
+            priceCache = {};
             cashTWD = 0;
             stableCoinUSD = 0;
             cashUSD = 0;
@@ -3586,10 +3783,12 @@
 
         function setStatus(msg, type) {
             const el = document.getElementById('api-status');
+            if (!el) return;
             el.innerHTML = msg;
             if(type === 'loading') el.style.color = currentTheme === 'solarized-light' ? '#b58900' : '#f7931a';
             if(type === 'success') el.style.color = 'var(--badge-profit-text)';
             if(type === 'error') el.style.color = 'var(--badge-loss-text)';
+            if(type === 'warning' || type === 'sandbox') el.style.color = 'var(--accent-blue)';
         }
 
         function updateCoinDropdown(category) {
@@ -3597,11 +3796,11 @@
             coinSelect.innerHTML = '';
             
             let allOptions = [];
-            if (categoryOptions[category]) {
+            if (!isTestMode && categoryOptions[category]) {
                 allOptions = [...categoryOptions[category]];
             }
 
-            let customTickers = JSON.parse(localStorage.getItem('wealthCustomTickers')) || { 'tw_stock': [], 'us_stock': [], 'crypto': [] };
+            let customTickers = JSON.parse(localStorage.getItem(getScopedStorageKey('wealthCustomTickers'))) || { 'tw_stock': [], 'us_stock': [], 'crypto': [] };
             if (customTickers[category]) {
                 customTickers[category].forEach(ticker => {
                     if (!allOptions.find(opt => opt.value === ticker)) {
@@ -3610,12 +3809,21 @@
                 });
             }
 
-            allOptions.forEach(opt => {
-                const optionElement = document.createElement('option');
-                optionElement.value = opt.value;
-                optionElement.innerText = opt.text;
-                coinSelect.appendChild(optionElement);
-            });
+            if (allOptions.length === 0) {
+                const emptyOpt = document.createElement('option');
+                emptyOpt.value = '';
+                emptyOpt.innerText = '請先新增標的';
+                emptyOpt.disabled = true;
+                emptyOpt.selected = true;
+                coinSelect.appendChild(emptyOpt);
+            } else {
+                allOptions.forEach(opt => {
+                    const optionElement = document.createElement('option');
+                    optionElement.value = opt.value;
+                    optionElement.innerText = opt.text;
+                    coinSelect.appendChild(optionElement);
+                });
+            }
 
             document.getElementById('trade-price').placeholder = category === 'tw_stock' ? '單價 (NT$)' : '單價 (USD)';
             document.getElementById('trade-amount').placeholder = (category === 'tw_stock' || category === 'us_stock') ? '股數 (例: 1000)' : '數量 (例: 100)';
@@ -3631,7 +3839,11 @@
             const delBtn = document.getElementById('delete-ticker-btn');
             if(!coinSelect || !delBtn) return;
             const currentVal = coinSelect.value;
-            const isDefault = categoryOptions[currentTab] && categoryOptions[currentTab].some(opt => opt.value === currentVal);
+            if (!currentVal) {
+                delBtn.style.display = 'none';
+                return;
+            }
+            const isDefault = !isTestMode && categoryOptions[currentTab] && categoryOptions[currentTab].some(opt => opt.value === currentVal);
             delBtn.style.display = isDefault ? 'none' : 'inline-block';
         }
 
@@ -3688,7 +3900,7 @@
             else if (cur === 'USD') cur = 'NATIVE';
             else cur = 'TWD';
             tabCurrencies[currentTab] = cur;
-            localStorage.setItem('wealthCurrencies', JSON.stringify(tabCurrencies)); 
+            localStorage.setItem(getScopedStorageKey('wealthCurrencies'), JSON.stringify(tabCurrencies)); 
             updateCurrencyUI(); 
             renderDashboardUI();
         }
@@ -3697,13 +3909,13 @@
             if (historyCurrency === 'TWD') historyCurrency = 'USD';
             else if (historyCurrency === 'USD') historyCurrency = 'NATIVE';
             else historyCurrency = 'TWD';
-            localStorage.setItem('wealthHistoryCurrency', historyCurrency);
+            localStorage.setItem(getScopedStorageKey('wealthHistoryCurrency'), historyCurrency);
             renderDashboardUI();
         }
 
         function toggleZeroHoldings() {
             tabHideZero[currentTab] = !tabHideZero[currentTab];
-            localStorage.setItem('wealthHideZeroTabs', JSON.stringify(tabHideZero));
+            localStorage.setItem(getScopedStorageKey('wealthHideZeroTabs'), JSON.stringify(tabHideZero));
             renderDashboardUI();
         }
 
@@ -3725,7 +3937,7 @@
 
         function togglePieChartMode() {
             pieChartMode = pieChartMode === 'detail' ? 'category' : 'detail';
-            localStorage.setItem('wealthPieMode', pieChartMode);
+            localStorage.setItem(getScopedStorageKey('wealthPieMode'), pieChartMode);
             renderDashboardUI();
         }
 
@@ -3749,23 +3961,23 @@
 
         function executeTabSwitch(tabId, isAutoSync = false) {
             currentTab = tabId;
-            localStorage.setItem('wealthLastTab', tabId); 
+            localStorage.setItem(getScopedStorageKey('wealthLastTab'), tabId); 
 
             if (!isAutoSync) {
                 const catFilterEl = document.getElementById('history-category-filter');
                 if (catFilterEl) {
-                    catFilterEl.value = localStorage.getItem('wealthCategoryFilter') || 'all';
+                    catFilterEl.value = localStorage.getItem(getScopedStorageKey('wealthCategoryFilter')) || 'all';
                 }
                 const filterEl = document.getElementById('history-filter');
                 if (filterEl) {
-                    let savedHistoryFilters = JSON.parse(localStorage.getItem('wealthHistoryFilters')) || {};
+                    let savedHistoryFilters = JSON.parse(localStorage.getItem(getScopedStorageKey('wealthHistoryFilters'))) || {};
                     filterEl.value = savedHistoryFilters[tabId] || 'all';
                 }
             }
 
             const timeFilterEl = document.getElementById('trend-time-filter');
             if (timeFilterEl) {
-                let savedFilters = JSON.parse(localStorage.getItem('wealthTrendFilters')) || {};
+                let savedFilters = JSON.parse(localStorage.getItem(getScopedStorageKey('wealthTrendFilters'))) || {};
                 timeFilterEl.value = savedFilters[tabId] || 'all';
             }
 
@@ -3776,7 +3988,7 @@
             const formCard = document.getElementById('form-card');
             
             const trendCard = document.getElementById('trend-card');
-            if(trendCard && snapshots.length > 0) trendCard.style.display = 'block';
+            if (trendCard) trendCard.style.display = snapshots.length > 0 ? 'block' : 'none';
             
             if (currentTab === 'simulator') {
                 document.getElementById('main-dashboard-grid').style.display = 'none';
@@ -3839,25 +4051,67 @@
         async function updateCashValue(val) {
             cashTWD = parseFloat(val) || 0;
             renderDashboardUI();
+            if (isTestMode) {
+                localStorage.setItem(getScopedStorageKey('wealthCashTWD'), cashTWD.toString());
+                setStatus('🧪 測試台幣現金已更新於本機測試區', 'sandbox');
+                return;
+            }
             try { await fetch(API_URL, { method: 'POST', body: JSON.stringify({ pwd: wealthPwd, type: 'updateCash', value: cashTWD }) }); } catch(e) {}
         }
 
         async function updateStableCoinValue(val) {
             stableCoinUSD = parseFloat(val) || 0;
             renderDashboardUI();
+            if (isTestMode) {
+                localStorage.setItem(getScopedStorageKey('wealthStableCoinUSD'), stableCoinUSD.toString());
+                setStatus('🧪 測試穩定幣餘額已更新於本機測試區', 'sandbox');
+                return;
+            }
             try { await fetch(API_URL, { method: 'POST', body: JSON.stringify({ pwd: wealthPwd, type: 'updateStableCoin', value: stableCoinUSD }) }); } catch(e) {}
         }
 
         async function updateCashUSDValue(val) {
             cashUSD = parseFloat(val) || 0;
             renderDashboardUI();
+            if (isTestMode) {
+                localStorage.setItem(getScopedStorageKey('wealthCashUSD'), cashUSD.toString());
+                setStatus('🧪 測試美金現金已更新於本機測試區', 'sandbox');
+                return;
+            }
             try { await fetch(API_URL, { method: 'POST', body: JSON.stringify({ pwd: wealthPwd, type: 'updateCashUSD', value: cashUSD }) }); } catch(e) {}
+        }
+
+        function setTestMarketPrice(coin, itemCurrency = '') {
+            if (!isTestMode || !coin) return;
+            const currentVal = priceCache[coin] !== undefined ? priceCache[coin] : '';
+            const curNote = itemCurrency ? ` (${itemCurrency})` : '';
+            const input = prompt(`測試模式：請輸入「${coin}」的模擬即時市價${curNote}\n（留空並按確定可恢復預設以買入均價計算）`, currentVal);
+            if (input === null) return;
+            const trimmed = input.trim();
+            if (trimmed === '') {
+                delete priceCache[coin];
+            } else {
+                const parsed = parseFloat(trimmed);
+                if (isNaN(parsed) || parsed < 0) {
+                    alert('請輸入有效的非負數字！');
+                    return;
+                }
+                priceCache[coin] = parsed;
+            }
+            localStorage.setItem(getScopedStorageKey('wealthPriceCache'), JSON.stringify(priceCache));
+            renderDashboardUI();
+            setStatus(`🧪 已更新「${coin}」之測試模擬即時市價`, 'sandbox');
         }
 
         async function syncWithCloud(options = {}) {
             const isManualLogin = !!options.isManualLogin;
             const isStartupAutoLogin = !!options.isStartupAutoLogin;
+            const requestEpoch = authSessionEpoch;
 
+            if (isTestMode) {
+                setStatus('🧪 測試模式為離線本機沙盒，已停用雲端同步', 'sandbox');
+                return false;
+            }
             if (!wealthPwd) { showLogin(); return false; }
             if (editingId !== null) {
                 setStatus('⚠️ 您正在修改資料中，已暫停背景自動同步以保護輸入內容', 'warning');
@@ -3868,6 +4122,9 @@
                 const response = await fetch(`${API_URL}?pwd=${encodeURIComponent(wealthPwd)}`);
                 
                 let text = await response.text();
+                if (requestEpoch !== authSessionEpoch || isTestMode) {
+                    return false;
+                }
                 if (editingId !== null) {
                     setStatus('⚠️ 您正在修改資料中，已忽略此次背景同步結果', 'warning');
                     return false;
@@ -3936,11 +4193,16 @@
                     }
                 }
 
+                if (requestEpoch !== authSessionEpoch || isTestMode) {
+                    return false;
+                }
+
                 if (!wasInitialized) {
                     syncExpenseDateBounds();
                     populateExpenseCategoryFilter();
                 }
 
+                updateTestModeUI();
                 document.body.classList.add('app-authenticated');
                 const overlay = document.getElementById('login-overlay');
                 if (overlay) overlay.style.display = 'none';
@@ -3958,10 +4220,13 @@
                 }
                 
                 setStatus('🟢 雲端資料庫同步完成 (含日常記帳)', 'success');
-                executeTabSwitch(currentTab, true);
+                executeTabSwitch(currentTab, wasInitialized);
                 return true;
             } catch (error) {
                 console.error(error);
+                if (requestEpoch !== authSessionEpoch || isTestMode) {
+                    return false;
+                }
                 if (isManualLogin || !document.body.classList.contains('app-authenticated')) {
                     showLogin(true, `連線驗證失敗：${error.message || '未知錯誤'}，請檢查網路狀態後重試。`, false);
                     setStatus(`🔴 驗證失敗: ${error.message || '未知錯誤'}`, 'error');
@@ -3975,7 +4240,11 @@
         }
 
         async function saveDataToCloud(isSilent = false) {
-            localStorage.setItem('wealthTrades', JSON.stringify(trades));
+            localStorage.setItem(getScopedStorageKey('wealthTrades'), JSON.stringify(trades));
+            if (isTestMode) {
+                if (!isSilent) setStatus('🧪 測試交易已儲存於本機測試區（未寫入雲端）', 'sandbox');
+                return;
+            }
             localStorage.setItem('wealthDirty', 'true');
             if(!isSilent) setStatus('⏳ 正在儲存至 Google 雲端...', 'loading');
             try {
@@ -3987,23 +4256,28 @@
         }
 
         async function addNewTicker() {
-            if (currentTab === 'all') { alert('請先切換到「台股」、「美股」或「加密貨幣」頁籤再新增標的！'); return; }
+            if (currentTab === 'all' || currentTab === 'simulator') { alert('請先切換到「台股」、「美股」或「加密貨幣」頁籤再新增標的！'); return; }
             const inputEl = document.getElementById('new-ticker-input');
             let newTicker = inputEl.value.trim().toUpperCase();
             if (!newTicker) return;
 
             if (currentTab === 'tw_stock' && /^\d+$/.test(newTicker) && newTicker.length < 4) { newTicker = newTicker.padStart(4, '0'); }
 
-            let customTickers = JSON.parse(localStorage.getItem('wealthCustomTickers')) || { 'tw_stock': [], 'us_stock': [], 'crypto': [] };
+            const tickersKey = getScopedStorageKey('wealthCustomTickers');
+            let customTickers = JSON.parse(localStorage.getItem(tickersKey)) || { 'tw_stock': [], 'us_stock': [], 'crypto': [] };
             if (!customTickers[currentTab]) customTickers[currentTab] = [];
             
             if (!customTickers[currentTab].includes(newTicker)) {
                 customTickers[currentTab].push(newTicker);
-                localStorage.setItem('wealthCustomTickers', JSON.stringify(customTickers));
+                localStorage.setItem(tickersKey, JSON.stringify(customTickers));
                 updateCoinDropdown(currentTab);
                 document.getElementById('trade-coin').value = newTicker;
                 inputEl.value = '';
                 toggleDeleteButton();
+                if (isTestMode) {
+                    setStatus(`🧪 已將測試標的「${newTicker}」加入測試選單`, 'sandbox');
+                    return;
+                }
                 setStatus('⏳ 正在將新標的寫入 Google 雲端...', 'loading');
                 try {
                     await fetch(API_URL, { method: 'POST', body: JSON.stringify({ pwd: wealthPwd, type: 'addTicker', category: currentTab, ticker: newTicker }) });
@@ -4021,17 +4295,25 @@
             const coinSelect = document.getElementById('trade-coin');
             const tickerToDelete = coinSelect.value;
             if (!tickerToDelete) return;
-            const isDefault = categoryOptions[currentTab] && categoryOptions[currentTab].some(opt => opt.value === tickerToDelete);
+            const isDefault = !isTestMode && categoryOptions[currentTab] && categoryOptions[currentTab].some(opt => opt.value === tickerToDelete);
             if (isDefault) { alert('這個是系統預設標的，無法刪除喔！'); return; }
 
-            if(!confirm(`確定要從選單移除自訂標的「${tickerToDelete}」嗎？\n(注意：如果你已經買了這個標的，刪除後它將無法更新即時報價！)`)) return;
+            const confirmMsg = isTestMode
+                ? `確定要移除測試標的「${tickerToDelete}」嗎？`
+                : `確定要從選單移除自訂標的「${tickerToDelete}」嗎？\n(注意：如果你已經買了這個標的，刪除後它將無法更新即時報價！)`;
+            if(!confirm(confirmMsg)) return;
 
-            let customTickers = JSON.parse(localStorage.getItem('wealthCustomTickers')) || { 'tw_stock': [], 'us_stock': [], 'crypto': [] };
+            const tickersKey = getScopedStorageKey('wealthCustomTickers');
+            let customTickers = JSON.parse(localStorage.getItem(tickersKey)) || { 'tw_stock': [], 'us_stock': [], 'crypto': [] };
             if (customTickers[currentTab]) {
                 customTickers[currentTab] = customTickers[currentTab].filter(t => t !== tickerToDelete);
-                localStorage.setItem('wealthCustomTickers', JSON.stringify(customTickers));
+                localStorage.setItem(tickersKey, JSON.stringify(customTickers));
             }
             updateCoinDropdown(currentTab);
+            if (isTestMode) {
+                setStatus(`🧪 已從測試選單移除「${tickerToDelete}」`, 'sandbox');
+                return;
+            }
             setStatus(`⏳ 正在從雲端移除 ${tickerToDelete} 的報價追蹤...`, 'loading');
             try {
                 await fetch(API_URL, { method: 'POST', body: JSON.stringify({ pwd: wealthPwd, type: 'removeTicker', ticker: tickerToDelete }) });
@@ -4045,7 +4327,8 @@
             const amount = parseFloat(document.getElementById('trade-amount').value);
             const price = parseFloat(document.getElementById('trade-price').value);
             const amountLabel = (currentTab === 'tw_stock' || currentTab === 'us_stock') ? '股數' : '數量';
-            if(!coin || !amount || !price) { alert(`請填寫${amountLabel}與價格`); return; }
+            if (!coin) { alert('請先於下方輸入代號加入標的選單！'); return; }
+            if (!amount || !price) { alert(`請填寫${amountLabel}與價格`); return; }
             const newId = Date.now().toString(); 
             const finalDate = new Date().toLocaleString('zh-TW', { hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/-/g, '/');
             trades.push({ id: newId, category: currentTab, date: finalDate, type, coin, amount, price });
@@ -4056,7 +4339,8 @@
         }
 
         async function deleteTrade(id) {
-            if(confirm('確定要從雲端資料庫刪除這筆紀錄嗎？')) {
+            const msg = isTestMode ? '確定要刪除這筆測試交易紀錄嗎？' : '確定要從雲端資料庫刪除這筆紀錄嗎？';
+            if(confirm(msg)) {
                 trades = trades.filter(t => t.id !== id.toString());
                 renderDashboardUI(); 
                 await saveDataToCloud();
@@ -4064,7 +4348,8 @@
         }
 
         async function clearCurrentCategoryTrades() {
-            const msg = currentTab === 'all' ? '確定要清空【所有】雲端資產紀錄嗎？' : `確定要清空【${categoryNames[currentTab]}】的雲端紀錄嗎？`;
+            const scopeLabel = isTestMode ? '測試' : '雲端';
+            const msg = currentTab === 'all' ? `確定要清空【所有】${scopeLabel}資產紀錄嗎？` : `確定要清空【${categoryNames[currentTab]}】的${scopeLabel}紀錄嗎？`;
             if(confirm(msg)) {
                 if(currentTab === 'all') { trades = []; } 
                 else { trades = trades.filter(t => t.category !== currentTab); }
@@ -4104,19 +4389,19 @@
 
         function toggleShowCash() {
             showCashInValueChart = document.getElementById('show-cash-toggle').checked;
-            localStorage.setItem('wealthShowCashInVal', JSON.stringify(showCashInValueChart));
+            localStorage.setItem(getScopedStorageKey('wealthShowCashInVal'), JSON.stringify(showCashInValueChart));
             renderDashboardUI();
         }
 
         function toggleShowCostCash() {
             showCashInCostChart = document.getElementById('show-cost-cash-toggle').checked;
-            localStorage.setItem('wealthShowCashInCost', JSON.stringify(showCashInCostChart));
+            localStorage.setItem(getScopedStorageKey('wealthShowCashInCost'), JSON.stringify(showCashInCostChart));
             renderDashboardUI();
         }
 
         function toggleRoiMode() {
             trendRoiMode = trendRoiMode === 'unrealized' ? 'asset' : 'unrealized';
-            localStorage.setItem('wealthTrendRoiMode', trendRoiMode);
+            localStorage.setItem(getScopedStorageKey('wealthTrendRoiMode'), trendRoiMode);
             if (document.getElementById('trend-card').style.display !== 'none') {
                 updateTrendChart();
             }
@@ -4130,7 +4415,7 @@
 
             let globalCurrency = tabCurrencies[currentTab]; 
             trades.sort((a, b) => new Date(a.date) - new Date(b.date));
-            document.getElementById('current-ex-rate').innerText = currentExchangeRate.toFixed(2);
+            document.getElementById('current-ex-rate').innerText = isTestMode ? `${currentExchangeRate.toFixed(2)} (測試預設)` : currentExchangeRate.toFixed(2);
 
             const hideBtn = document.getElementById('hide-zero-btn');
             if (hideBtn) {
@@ -4148,7 +4433,7 @@
                 categoryFilterSelect.style.display = currentTab === 'all' ? 'inline-block' : 'none';
                 currentCategoryFilter = categoryFilterSelect.value;
                 if (currentTab === 'all') {
-                    localStorage.setItem('wealthCategoryFilter', currentCategoryFilter);
+                    localStorage.setItem(getScopedStorageKey('wealthCategoryFilter'), currentCategoryFilter);
                 }
             }
 
@@ -4181,9 +4466,9 @@
                 historyFilterSelect.innerHTML = filterOptionsHTML;
                 historyFilterSelect.value = currentFilter;
                 
-                let savedHistoryFilters = JSON.parse(localStorage.getItem('wealthHistoryFilters')) || {};
+                let savedHistoryFilters = JSON.parse(localStorage.getItem(getScopedStorageKey('wealthHistoryFilters'))) || {};
                 savedHistoryFilters[currentTab] = currentFilter;
-                localStorage.setItem('wealthHistoryFilters', JSON.stringify(savedHistoryFilters));
+                localStorage.setItem(getScopedStorageKey('wealthHistoryFilters'), JSON.stringify(savedHistoryFilters));
             }
 
             let portfolio = {};
@@ -4263,8 +4548,8 @@
                     let typeHtml = `<select id="edit-type-${t.id}" style="${inputStyle}"><option value="buy" ${t.type==='buy'?'selected':''}>買入</option><option value="sell" ${t.type==='sell'?'selected':''}>賣出</option></select>`;
                     
                     let allOptions = [];
-                    if (categoryOptions[t.category]) allOptions = [...categoryOptions[t.category]];
-                    let customTickers = JSON.parse(localStorage.getItem('wealthCustomTickers')) || { 'tw_stock': [], 'us_stock': [], 'crypto': [] };
+                    if (!isTestMode && categoryOptions[t.category]) allOptions = [...categoryOptions[t.category]];
+                    let customTickers = JSON.parse(localStorage.getItem(getScopedStorageKey('wealthCustomTickers'))) || { 'tw_stock': [], 'us_stock': [], 'crypto': [] };
                     if (customTickers[t.category]) {
                         customTickers[t.category].forEach(ticker => {
                             if (!allOptions.find(opt => opt.value === ticker)) allOptions.push({ value: ticker, text: ticker });
@@ -4411,7 +4696,15 @@
                 let realizedBadge = `<span class="badge ${realizedClass}">${realizedSign}${formatMoney(displayRealized, 2, rowCurrency)}</span>`;
                 let displayCatBadgeHTML = currentTab === 'all' ? `<span class="tag-badge" style="font-weight:normal; font-size:10px;">${categoryNames[portfolio[coin].category]}</span>` : '';
                 let precision = (coin === 'NIGHT') ? 5 : ((coin === 'BTC' || coin === 'ETH' || rowCurrency === 'TWD' || portfolio[coin].category === 'us_stock') ? 2 : 4);
-                let priceDisplay = isAwaitingAPI ? `<span title="等待同步..." style="color:var(--text-muted);">${formatPrice(displayPrice, precision, rowCurrency)} ⏳</span>` : formatPrice(displayPrice, precision, rowCurrency);
+                let rawPriceHTML = isAwaitingAPI
+                    ? (isTestMode
+                        ? `<span title="測試模式預設以成交均價顯示，點擊可自訂模擬市價" style="color:var(--text-muted);">${formatPrice(displayPrice, precision, rowCurrency)}</span>`
+                        : `<span title="等待同步..." style="color:var(--text-muted);">${formatPrice(displayPrice, precision, rowCurrency)} ⏳</span>`)
+                    : formatPrice(displayPrice, precision, rowCurrency);
+                const safeCoinAttr = coin.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                let priceDisplay = (isTestMode && !isPrivacyMode)
+                    ? `<span class="test-price-editable" data-coin="${safeCoinAttr}" data-currency="${itemCurrency}" onclick="setTestMarketPrice(this.dataset.coin, this.dataset.currency)" title="測試模式：點擊設定模擬即時市價 (${itemCurrency})">${rawPriceHTML} ✏️</span>`
+                    : rawPriceHTML;
 
                 let subtextHTML = '';
                 if (globalCurrency === 'NATIVE') {
@@ -4790,9 +5083,9 @@
             const timeFilterEl = document.getElementById('trend-time-filter');
             const filterValue = timeFilterEl ? timeFilterEl.value : 'all';
 
-            let savedFilters = JSON.parse(localStorage.getItem('wealthTrendFilters')) || {};
+            let savedFilters = JSON.parse(localStorage.getItem(getScopedStorageKey('wealthTrendFilters'))) || {};
             savedFilters[currentTab] = filterValue;
-            localStorage.setItem('wealthTrendFilters', JSON.stringify(savedFilters));
+            localStorage.setItem(getScopedStorageKey('wealthTrendFilters'), JSON.stringify(savedFilters));
 
             if (filterValue !== 'all' && sortedSnaps.length > 0) {
                 const latestDate = new Date(sortedSnaps[sortedSnaps.length - 1].date);
@@ -4933,7 +5226,7 @@
                 if (badgeEl) badgeEl.style.display = 'none';
             }
 
-            let legendStorageKey = 'wealthTrendLegend_' + currentTab;
+            let legendStorageKey = getScopedStorageKey('wealthTrendLegend_' + currentTab);
             let hiddenState = JSON.parse(localStorage.getItem(legendStorageKey));
             if (!hiddenState) {
                 hiddenState = {};
@@ -5367,7 +5660,7 @@
                 let qty = holdings[coin].qty;
                 let cat = holdings[coin].category;
                 let cost = holdings[coin].cost;
-                let currentPrice = priceCache[coin] || 0;
+                let currentPrice = priceCache[coin] !== undefined ? priceCache[coin] : (qty > 0 ? (cost / qty) : 0);
                 
                 let precision = (coin === 'NIGHT') ? 5 : ((coin === 'BTC' || coin === 'ETH' || cat === 'us_stock' || cat === 'tw_stock') ? 2 : 4);
                 let safeCurrentPrice = Number(currentPrice.toFixed(precision));
@@ -5467,9 +5760,12 @@
         window.onload = () => {
             initTheme();
             updatePrivacyToggleUI(isPrivacyMode);
-            if (!wealthPwd) {
+            if (sessionStorage.getItem('wealthTestModeSession') === 'true') {
+                enterTestMode();
+            } else if (!wealthPwd) {
                 showLogin(false);
             } else {
+                updateTestModeUI();
                 document.body.classList.add('app-authenticated');
                 const overlay = document.getElementById('login-overlay');
                 if (overlay) overlay.style.display = 'none';
@@ -5481,7 +5777,7 @@
             }
         };
         setInterval(() => {
-            if (wealthPwd && !isVerifyingAuth && document.body.classList.contains('app-authenticated')) {
+            if (!isTestMode && wealthPwd && !isVerifyingAuth && document.body.classList.contains('app-authenticated')) {
                 syncWithCloud();
             }
         }, 60000); 
@@ -5592,7 +5888,7 @@
             ci.data.datasets.forEach((ds, idx) => {
                 if (ds.label) savedState[ds.label] = !ci.isDatasetVisible(idx);
             });
-            let legendStorageKey = 'wealthTrendLegend_' + currentTab;
+            let legendStorageKey = getScopedStorageKey('wealthTrendLegend_' + currentTab);
             localStorage.setItem(legendStorageKey, JSON.stringify(savedState));
         }
 
