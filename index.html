@@ -227,14 +227,24 @@
             font-weight: bold;
             font-size: 14px;
         }
-        .login-box button:hover {
+        .login-box button:hover:not(:disabled) {
             background-color: var(--btn-action-hover);
+        }
+        .login-box button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
         }
         #login-error {
             color: var(--badge-loss-text);
             font-size: 13px;
             margin-top: 10px;
             display: none;
+        }
+        body:not(.app-authenticated) .dashboard-header,
+        body:not(.app-authenticated) .app-mode-switch-wrapper,
+        body:not(.app-authenticated) #investment-view,
+        body:not(.app-authenticated) #expense-view {
+            display: none !important;
         }
 
         /* ==================== APP MODE SWITCHER ==================== */
@@ -1103,8 +1113,8 @@
     <div id="login-overlay">
         <div class="login-box">
             <h2>🔒 Dashboard Login</h2>
-            <input type="password" id="pwd-input" placeholder="請輸入密碼" onkeypress="if(event.key === 'Enter') attemptLogin()">
-            <button onclick="attemptLogin()">解鎖 (Unlock)</button>
+            <input type="password" id="pwd-input" placeholder="請輸入密碼" onkeydown="if(event.key === 'Enter') { event.preventDefault(); attemptLogin(); }">
+            <button id="login-submit-btn" onclick="attemptLogin()">解鎖 (Unlock)</button>
             <div id="login-error">密碼錯誤，請重新輸入。</div>
         </div>
     </div>
@@ -1749,27 +1759,7 @@
             }
         }
 
-        function initExpenses() {
-            let saved = localStorage.getItem('wealthExpenses');
-            if (!saved) {
-                expenses = initialExpenseTuples.map(t => ({
-                    id: t[0],
-                    date: t[1],
-                    type: t[2],
-                    category: t[3],
-                    amount: t[4],
-                    account: t[5],
-                    note: t[6]
-                }));
-                localStorage.setItem('wealthExpenses', JSON.stringify(expenses));
-            } else {
-                try {
-                    expenses = JSON.parse(saved) || [];
-                } catch(e) {
-                    expenses = [];
-                }
-            }
-
+        function syncExpenseDateBounds() {
             if (expenses.length > 0) {
                 let latestDate = expenses.reduce((max, e) => e.date > max ? e.date : max, '2026-10-01');
                 selectedExpenseDate = latestDate;
@@ -1793,13 +1783,36 @@
             const cEnd = document.getElementById('expense-custom-end');
             if (cStart) cStart.value = expenseCustomStart;
             if (cEnd) cEnd.value = expenseCustomEnd;
-
-            initExpenseCategoryMatrix();
-            populateExpenseCategoryFilter();
-            setExpensePeriodType(expensePeriodType, true);
         }
 
-        function setExpensePeriodType(type, isInit = false) {
+        function initExpenses(skipRender = false) {
+            let saved = localStorage.getItem('wealthExpenses');
+            if (!saved) {
+                expenses = initialExpenseTuples.map(t => ({
+                    id: t[0],
+                    date: t[1],
+                    type: t[2],
+                    category: t[3],
+                    amount: t[4],
+                    account: t[5],
+                    note: t[6]
+                }));
+                localStorage.setItem('wealthExpenses', JSON.stringify(expenses));
+            } else {
+                try {
+                    expenses = JSON.parse(saved) || [];
+                } catch(e) {
+                    expenses = [];
+                }
+            }
+
+            syncExpenseDateBounds();
+            initExpenseCategoryMatrix();
+            populateExpenseCategoryFilter();
+            setExpensePeriodType(expensePeriodType, true, skipRender);
+        }
+
+        function setExpensePeriodType(type, isInit = false, skipRender = false) {
             expensePeriodType = type;
             localStorage.setItem('wealthExpensePeriod', type);
 
@@ -1819,7 +1832,9 @@
                 if (!isInit) switchExpenseViewMode(expenseViewMode, false);
             }
 
-            renderExpenseUI();
+            if (!skipRender) {
+                renderExpenseUI();
+            }
         }
 
         function changeExpenseYear(delta) {
@@ -3340,6 +3355,9 @@
         let showCashInCostChart = localStorage.getItem('wealthShowCashInCost') ? JSON.parse(localStorage.getItem('wealthShowCashInCost')) : true;
         let trendRoiMode = localStorage.getItem('wealthTrendRoiMode') || 'unrealized';
         let wealthPwd = localStorage.getItem('wealthPwd') || '';
+        let isAuthenticated = false;
+        let isVerifyingAuth = false;
+        let hasInitializedApp = false;
         let currentTheme = localStorage.getItem('wealthTheme') || 'dark';
 
         function initTheme() {
@@ -3418,22 +3436,72 @@
         }
         initTheme();
 
-        function attemptLogin() {
-            const input = document.getElementById('pwd-input').value;
-            if(input) {
-                wealthPwd = input;
-                localStorage.setItem('wealthPwd', wealthPwd);
-                document.getElementById('login-overlay').style.display = 'none';
-                document.getElementById('login-error').style.display = 'none';
-                syncWithCloud();
+        function setLoginLoading(isLoading) {
+            isVerifyingAuth = isLoading;
+            const pwdInput = document.getElementById('pwd-input');
+            const submitBtn = document.getElementById('login-submit-btn');
+            if (pwdInput) pwdInput.disabled = isLoading;
+            if (submitBtn) {
+                submitBtn.disabled = isLoading;
+                submitBtn.innerText = isLoading ? '⏳ 驗證中...' : '解鎖 (Unlock)';
             }
         }
 
-        function showLogin(showError = false) {
-            document.getElementById('login-overlay').style.display = 'flex';
-            document.getElementById('login-error').style.display = showError ? 'block' : 'none';
-            localStorage.removeItem('wealthPwd');
+        async function attemptLogin() {
+            if (isVerifyingAuth) return;
+            const pwdInput = document.getElementById('pwd-input');
+            const input = pwdInput ? pwdInput.value : '';
+            const errEl = document.getElementById('login-error');
+
+            if (!input) {
+                if (errEl) {
+                    errEl.innerText = '請輸入密碼。';
+                    errEl.style.display = 'block';
+                }
+                if (pwdInput) pwdInput.focus();
+                return;
+            }
+
+            wealthPwd = input;
+            if (errEl) errEl.style.display = 'none';
+            setLoginLoading(true);
+
+            try {
+                await syncWithCloud({ isManualLogin: true });
+            } finally {
+                if (isVerifyingAuth) setLoginLoading(false);
+            }
+        }
+
+        function showLogin(showError = false, errorMsg = '密碼錯誤，請重新輸入。', clearInput = true) {
+            isAuthenticated = false;
+            hasInitializedApp = false;
+            setLoginLoading(false);
             wealthPwd = '';
+            localStorage.removeItem('wealthPwd');
+            trades = [];
+            expenses = [];
+            snapshots = [];
+            cashTWD = 0;
+            stableCoinUSD = 0;
+            cashUSD = 0;
+            document.body.classList.remove('app-authenticated');
+
+            const overlay = document.getElementById('login-overlay');
+            const errEl = document.getElementById('login-error');
+            const pwdInput = document.getElementById('pwd-input');
+            if (overlay) overlay.style.display = 'flex';
+            if (errEl) {
+                errEl.innerText = errorMsg;
+                errEl.style.display = showError ? 'block' : 'none';
+            }
+            if (pwdInput) {
+                if (clearInput) pwdInput.value = '';
+                setTimeout(() => {
+                    pwdInput.focus();
+                    if (!clearInput) pwdInput.select();
+                }, 50);
+            }
         }
 
         function resetHistoryCoinFilter() {
@@ -3764,7 +3832,7 @@
         }, { passive: false });
 
         let savedTab = localStorage.getItem('wealthLastTab') || 'crypto';
-        switchTab(savedTab, false);
+        currentTab = savedTab;
         updateCurrencyUI(); 
         document.getElementById('trade-date').value = formatInputDate();
 
@@ -3786,11 +3854,14 @@
             try { await fetch(API_URL, { method: 'POST', body: JSON.stringify({ pwd: wealthPwd, type: 'updateCashUSD', value: cashUSD }) }); } catch(e) {}
         }
 
-        async function syncWithCloud() {
-            if (!wealthPwd) { showLogin(); return; }
+        async function syncWithCloud(options = {}) {
+            const isManualLogin = !!options.isManualLogin;
+            const isStartupAutoLogin = !!options.isStartupAutoLogin;
+
+            if (!wealthPwd) { showLogin(); return false; }
             if (editingId !== null) {
                 setStatus('⚠️ 您正在修改資料中，已暫停背景自動同步以保護輸入內容', 'warning');
-                return;
+                return false;
             }
             try {
                 setStatus('⏳ 正在與 Google 雲端同步...', 'loading');
@@ -3799,16 +3870,25 @@
                 let text = await response.text();
                 if (editingId !== null) {
                     setStatus('⚠️ 您正在修改資料中，已忽略此次背景同步結果', 'warning');
-                    return;
+                    return false;
                 }
                 let data;
                 try { data = JSON.parse(text); } catch(e) { throw new Error("伺服器未回傳 JSON"); }
                 if (data.error === "Unauthorized") {
-                    showLogin(true);
+                    const msg = isStartupAutoLogin ? '登入驗證已失效，請重新輸入密碼。' : '密碼錯誤，請重新輸入。';
+                    showLogin(true, msg, true);
                     setStatus('密碼錯誤', 'error');
-                    return;
+                    return false;
                 }
                 if (data.status === "error") throw new Error(data.message);
+
+                isAuthenticated = true;
+                localStorage.setItem('wealthPwd', wealthPwd);
+
+                const wasInitialized = hasInitializedApp;
+                if (!hasInitializedApp) {
+                    initExpenses(true);
+                }
 
                 let localTrades = JSON.parse(localStorage.getItem('wealthTrades')) || [];
                 let isDirty = localStorage.getItem('wealthDirty') === 'true';
@@ -3854,18 +3934,43 @@
                         expenses = localExpenses;
                         await saveExpenseToCloud(null, 'batch', true);
                     }
-                    if (typeof renderExpenseUI === 'function') {
-                        renderExpenseUI();
-                    }
+                }
+
+                if (!wasInitialized) {
+                    syncExpenseDateBounds();
+                    populateExpenseCategoryFilter();
+                }
+
+                document.body.classList.add('app-authenticated');
+                const overlay = document.getElementById('login-overlay');
+                if (overlay) overlay.style.display = 'none';
+                setLoginLoading(false);
+                if (isManualLogin) {
+                    const pwdInput = document.getElementById('pwd-input');
+                    if (pwdInput) pwdInput.value = '';
+                }
+
+                if (!wasInitialized) {
+                    initAppMode();
+                    hasInitializedApp = true;
+                } else if (typeof renderExpenseUI === 'function') {
+                    renderExpenseUI();
                 }
                 
                 setStatus('🟢 雲端資料庫同步完成 (含日常記帳)', 'success');
                 executeTabSwitch(currentTab, true);
+                return true;
             } catch (error) {
                 console.error(error);
+                if (isManualLogin || !document.body.classList.contains('app-authenticated')) {
+                    showLogin(true, `連線驗證失敗：${error.message || '未知錯誤'}，請檢查網路狀態後重試。`, false);
+                    setStatus(`🔴 驗證失敗: ${error.message || '未知錯誤'}`, 'error');
+                    return false;
+                }
                 setStatus(`🔴 連線異常: ${error.message || '未知錯誤'}`, 'error');
                 trades = JSON.parse(localStorage.getItem('wealthTrades')) || [];
                 executeTabSwitch(currentTab, true);
+                return false;
             }
         }
 
@@ -5362,16 +5467,24 @@
         window.onload = () => {
             initTheme();
             updatePrivacyToggleUI(isPrivacyMode);
-            initExpenses();
-            initAppMode();
             if (!wealthPwd) {
-                showLogin();
+                showLogin(false);
             } else {
-                document.getElementById('login-overlay').style.display = 'none';
-                syncWithCloud();
+                document.body.classList.add('app-authenticated');
+                const overlay = document.getElementById('login-overlay');
+                if (overlay) overlay.style.display = 'none';
+                initExpenses();
+                initAppMode();
+                hasInitializedApp = true;
+                executeTabSwitch(currentTab, true);
+                syncWithCloud({ isStartupAutoLogin: true });
             }
         };
-        setInterval(syncWithCloud, 60000); 
+        setInterval(() => {
+            if (wealthPwd && !isVerifyingAuth && document.body.classList.contains('app-authenticated')) {
+                syncWithCloud();
+            }
+        }, 60000); 
         function toggleLegendMenu() {
             const dropdown = document.getElementById('legend-dropdown');
             dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
